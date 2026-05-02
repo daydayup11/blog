@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/daiyutong/blog/internal/model"
 	"github.com/daiyutong/blog/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -34,7 +35,22 @@ func (h *PostHandler) GetBySlug(c *gin.Context) {
 		return
 	}
 	views := h.stats.PostViewCount(post.ID)
-	c.JSON(http.StatusOK, gin.H{"post": post, "views": views, "reading_minutes": service.ReadingMinutes(post.WordCount)})
+	prev, next := h.posts.GetAdjacentPosts(post.CreatedAt)
+
+	toSlim := func(p *model.Post) interface{} {
+		if p == nil {
+			return nil
+		}
+		return gin.H{"title": p.Title, "slug": p.Slug}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"post":            post,
+		"views":           views,
+		"reading_minutes": service.ReadingMinutes(post.WordCount),
+		"prev":            toSlim(prev),
+		"next":            toSlim(next),
+	})
 }
 
 func (h *PostHandler) Tags(c *gin.Context) {

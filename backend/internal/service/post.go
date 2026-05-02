@@ -44,6 +44,22 @@ func (s *PostService) GetBySlug(slug string) (*model.Post, error) {
 	return &post, nil
 }
 
+// GetAdjacentPosts returns the previous (older) and next (newer) published posts by time.
+func (s *PostService) GetAdjacentPosts(createdAt interface{}) (prev, next *model.Post) {
+	var p, n model.Post
+	// prev = most recent post older than current
+	if err := s.db.Where("is_published = true AND created_at < ?", createdAt).
+		Order("created_at DESC").First(&p).Error; err == nil {
+		prev = &p
+	}
+	// next = oldest post newer than current
+	if err := s.db.Where("is_published = true AND created_at > ?", createdAt).
+		Order("created_at ASC").First(&n).Error; err == nil {
+		next = &n
+	}
+	return
+}
+
 // GetBySlugAdmin returns a post regardless of published status (for CMS editor).
 func (s *PostService) GetBySlugAdmin(slug string) (*model.Post, error) {
 	var post model.Post

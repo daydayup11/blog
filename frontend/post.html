@@ -51,7 +51,7 @@
     if (!slug) { document.getElementById('post-header').innerHTML = '<div class="empty">文章不存在</div>'; }
 
     const api = await getApi();
-    const { post, views, reading_minutes } = await api.getPost(slug);
+    const { post, views, reading_minutes, prev, next } = await api.getPost(slug);
 
     document.title = `${post.title} | 戴宇彤`;
     document.getElementById('post-header').innerHTML = `
@@ -113,26 +113,22 @@
           </div>`;
       } catch { /* no column nav if fetch fails */ }
     } else {
-      // Global prev/next by time — load surrounding posts
-      try {
-        const { posts } = await api.getPosts({ page: 1 });
-        const idx = posts.findIndex(p => p.slug === slug);
-        const prev = idx < posts.length - 1 ? posts[idx + 1] : null;
-        const next = idx > 0 ? posts[idx - 1] : null;
-        const prevHtml = prev
-          ? `<a href="/post.html?slug=${prev.slug}" style="max-width:45%;text-decoration:none">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">← 上一篇</div>
-              <div style="font-size:14px;color:var(--text-primary)">${prev.title}</div>
-            </a>`
-          : '<div></div>';
-        const nextHtml = next
-          ? `<a href="/post.html?slug=${next.slug}" style="max-width:45%;text-align:right;text-decoration:none">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">下一篇 →</div>
-              <div style="font-size:14px;color:var(--text-primary)">${next.title}</div>
-            </a>`
-          : '<div></div>';
+      // Global prev/next from API response
+      const prevHtml = prev
+        ? `<a href="/post.html?slug=${prev.slug}" style="max-width:45%;text-decoration:none">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">← 上一篇</div>
+            <div style="font-size:14px;color:var(--text-primary)">${prev.title}</div>
+          </a>`
+        : '<div></div>';
+      const nextHtml = next
+        ? `<a href="/post.html?slug=${next.slug}" style="max-width:45%;text-align:right;text-decoration:none">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">下一篇 →</div>
+            <div style="font-size:14px;color:var(--text-primary)">${next.title}</div>
+          </a>`
+        : '<div></div>';
+      if (prev || next) {
         postNav.innerHTML = `<div style="display:flex;justify-content:space-between;width:100%">${prevHtml}${nextHtml}</div>`;
-      } catch { /* ignore */ }
+      }
     }
 
     // TOC scroll highlight
