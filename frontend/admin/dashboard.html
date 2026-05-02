@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统计 | 后台管理</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <h2 style="font-size:18px;font-weight:700">访问统计</h2>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="page-btn active" data-days="7">7天</button>
+        <button class="page-btn" data-days="30">30天</button>
+        <button class="page-btn" data-days="1">今日</button>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:28px">
+      <div class="card" style="text-align:center">
+        <div style="font-size:28px;font-weight:700;color:var(--accent)" id="total-pv">—</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">总 PV</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:28px;font-weight:700;color:var(--accent)" id="total-uv">—</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">总 UV</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <a href="https://analytics.google.com" target="_blank"
+          style="font-size:14px;font-weight:600;color:var(--accent);text-decoration:none">
+          Google Analytics →
+        </a>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">深度分析</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:28px">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">每日 PV / UV</div>
+      <canvas id="stats-chart" height="120"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:16px">热门文章 Top 10</div>
+      <div id="top-posts"><div class="loading">加载中...</div></div>
+    </div>
+
+  </main>
+
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('dashboard');
+
+    let currentDays = 7;
+
+    async function loadStats(days) {
+      currentDays = days;
+      document.querySelectorAll('[data-days]').forEach(b =>
+        b.classList.toggle('active', +b.dataset.days === days));
+      const data = await api.adminStats(days);
+      document.getElementById('total-pv').textContent = data.total_pv ?? 0;
+      document.getElementById('total-uv').textContent = data.total_uv ?? 0;
+      drawChart(data.daily || []);
+      const posts = data.top_posts || [];
+      document.getElementById('top-posts').innerHTML = posts.length
+        ? posts.map((p, i) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px;color:var(--text-muted);min-width:20px">${i + 1}</span>
+              <span style="flex:1;font-size:14px">${p.title}</span>
+              <span style="font-size:13px;color:var(--text-muted)">👁 ${p.views}</span>
+            </div>`).join('')
+        : '<div class="empty">暂无数据</div>';
+    }
+
+    function drawChart(daily) {
+      const canvas = document.getElementById('stats-chart');
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth - 40;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!daily.length) {
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+        ctx.font = '13px system-ui';
+        ctx.fillText('暂无数据', canvas.width / 2 - 24, canvas.height / 2);
+        return;
+      }
+      const maxVal = Math.max(...daily.map(d => Math.max(d.pv, d.uv)), 1);
+      const barW = Math.floor((canvas.width - 20) / daily.length / 2.5);
+      const gap  = Math.floor((canvas.width - 20) / daily.length);
+      const h    = canvas.height - 24;
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const pvColor = isDark ? '#00ff88' : '#2563eb';
+      const uvColor = isDark ? '#60a5fa' : '#93c5fd';
+      daily.forEach((d, i) => {
+        const x = 10 + i * gap;
+        const pvH = Math.round((d.pv / maxVal) * h);
+        const uvH = Math.round((d.uv / maxVal) * h);
+        ctx.fillStyle = pvColor;
+        ctx.fillRect(x, h - pvH, barW, pvH);
+        ctx.fillStyle = uvColor;
+        ctx.fillRect(x + barW + 2, h - uvH, barW, uvH);
+        if (i % Math.ceil(daily.length / 7) === 0) {
+          ctx.fillStyle = isDark ? '#475569' : '#94a3b8';
+          ctx.font = '10px system-ui';
+          ctx.fillText(d.date.slice(5), x, canvas.height);
+        }
+      });
+    }
+
+    document.querySelector('[data-days]').parentElement.addEventListener('click', e => {
+      if (e.target.matches('[data-days]')) loadStats(+e.target.dataset.days);
+    });
+
+    loadStats(7);
+  </script>
+</body>
+</html>
