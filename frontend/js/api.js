@@ -36,6 +36,7 @@ export const api = {
   adminPinPost:     (id, pinned) => request(`/admin/posts/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pinned }) }),
   adminPublishPost: (id, published) => request(`/admin/posts/${id}/publish`, { method: 'PUT', body: JSON.stringify({ published }) }),
   adminListColumns: () => request('/admin/columns'),
+  adminGetColumnPosts: (id) => request(`/admin/columns/${id}/posts`),
   adminCreateColumn: (data) => request('/admin/columns', { method: 'POST', body: JSON.stringify(data) }),
   adminUpdateColumn: (id, data) => request(`/admin/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   adminPublishColumn: (id, published) => request(`/admin/columns/${id}`, { method: 'PUT', body: JSON.stringify({ published }) }),

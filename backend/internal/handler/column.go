@@ -44,6 +44,16 @@ func (h *ColumnHandler) GetBySlug(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"column": col, "posts": posts})
 }
 
+func (h *ColumnHandler) AdminGetPosts(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	posts, err := h.columns.GetPosts(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"posts": posts})
+}
+
 func (h *ColumnHandler) AdminCreate(c *gin.Context) {
 	var req struct {
 		Name        string `json:"name" binding:"required"`

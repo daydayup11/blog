@@ -12,6 +12,7 @@
     .action-btn { padding:3px 10px; border-radius:4px; font-size:12px; cursor:pointer; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); }
     .action-btn:hover { border-color:var(--accent); color:var(--accent); }
     .action-btn.danger:hover { border-color:#f87171; color:#f87171; }
+    .action-btn.active-btn { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
     .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
     .modal-overlay.show { display:flex; }
     .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px; width:480px; max-width:90vw; }
@@ -25,6 +26,37 @@
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th { text-align:left; padding:8px 12px; color:var(--text-muted); font-weight:500; border-bottom:1px solid var(--border); }
     td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+
+    /* Posts manager drawer */
+    .drawer-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:300; }
+    .drawer-overlay.show { display:block; }
+    .drawer {
+      position:fixed; top:0; right:-600px; width:580px; max-width:95vw; height:100vh;
+      background:var(--bg-card); border-left:1px solid var(--border);
+      z-index:301; transition:right 0.25s; display:flex; flex-direction:column;
+    }
+    .drawer.open { right:0; }
+    .drawer-header { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; }
+    .drawer-body { flex:1; overflow:hidden; display:grid; grid-template-columns:1fr 1fr; gap:0; }
+    .drawer-pane { display:flex; flex-direction:column; overflow:hidden; }
+    .drawer-pane + .drawer-pane { border-left:1px solid var(--border); }
+    .pane-header { padding:10px 14px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); border-bottom:1px solid var(--border); flex-shrink:0; }
+    .pane-body { flex:1; overflow-y:auto; padding:8px; }
+    .post-item {
+      display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:6px;
+      cursor:pointer; font-size:13px; margin-bottom:4px;
+    }
+    .post-item:hover { background:var(--bg-hover); }
+    .post-item .handle { color:var(--text-muted); cursor:grab; font-size:16px; flex-shrink:0; }
+    .post-item .title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .post-item .remove { color:var(--text-muted); font-size:16px; flex-shrink:0; }
+    .post-item .remove:hover { color:#f87171; }
+    .drawer-footer { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; }
+    .search-input {
+      width:100%; padding:7px 10px; border:none; border-bottom:1px solid var(--border);
+      background:var(--bg-secondary); color:var(--text-primary); font-size:13px; outline:none;
+      flex-shrink:0;
+    }
   </style>
 </head>
 <body>
@@ -42,7 +74,7 @@
             <th>专栏名</th>
             <th>Slug</th>
             <th style="width:80px">状态</th>
-            <th style="width:120px">操作</th>
+            <th style="width:180px">操作</th>
           </tr>
         </thead>
         <tbody id="col-tbody"><tr><td colspan="4" class="loading">加载中...</td></tr></tbody>
@@ -50,6 +82,7 @@
     </div>
   </main>
 
+  <!-- Edit/Create modal -->
   <div class="modal-overlay" id="modal">
     <div class="modal">
       <h3 style="font-size:16px;font-weight:700;margin-bottom:18px" id="modal-title">新建专栏</h3>
@@ -65,6 +98,35 @@
     </div>
   </div>
 
+  <!-- Posts manager drawer -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700" id="drawer-title">管理文章</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">拖拽左侧文章调整顺序，点击右侧文章添加</div>
+      </div>
+      <button class="action-btn" onclick="closeDrawer()">关闭</button>
+    </div>
+    <div class="drawer-body">
+      <!-- Left: current posts in column -->
+      <div class="drawer-pane">
+        <div class="pane-header">专栏文章（<span id="col-count">0</span>篇）</div>
+        <div class="pane-body" id="col-posts-list"></div>
+      </div>
+      <!-- Right: all posts to add -->
+      <div class="drawer-pane">
+        <div class="pane-header">所有文章</div>
+        <input class="search-input" id="post-search" placeholder="🔍 搜索文章标题...">
+        <div class="pane-body" id="all-posts-list"></div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="action-btn" onclick="closeDrawer()">取消</button>
+      <button onclick="saveColumnPosts()" style="padding:7px 18px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">保存顺序</button>
+    </div>
+  </div>
+
   <script type="module">
     import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
     import { api } from '/js/api.js';
@@ -73,6 +135,7 @@
     requireAuth();
     document.getElementById('nav-root').innerHTML = renderAdminNav('columns');
 
+    // ── Column list ──────────────────────────────────────────────
     async function loadColumns() {
       const { columns } = await api.adminListColumns();
       const tbody = document.getElementById('col-tbody');
@@ -80,16 +143,20 @@
       tbody.innerHTML = columns.map(c => `
         <tr>
           <td>${c.name}</td>
-          <td style="color:var(--text-muted);font-family:monospace">${c.slug}</td>
-          <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:${c.is_published ? 'var(--accent-dim)' : 'var(--bg-hover)'};color:${c.is_published ? 'var(--accent)' : 'var(--text-muted)'}">${c.is_published ? '已发布' : '草稿'}</span></td>
-          <td style="display:flex;gap:6px">
-            <button class="action-btn" onclick="editCol(${c.id},'${c.name}','${c.slug}','${(c.description||'').replace(/'/g,"\\'")}')">编辑</button>
+          <td style="color:var(--text-muted);font-family:monospace;font-size:12px">${c.slug}</td>
+          <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;
+            background:${c.is_published ? 'var(--accent-dim)' : 'var(--bg-hover)'};
+            color:${c.is_published ? 'var(--accent)' : 'var(--text-muted)'}">${c.is_published ? '已发布' : '草稿'}</span></td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="action-btn" onclick="openPostsDrawer(${c.id},'${c.name.replace(/'/g,"\\'")}')">管理文章</button>
+            <button class="action-btn" onclick="editCol(${c.id},'${c.name.replace(/'/g,"\\'")}','${c.slug}','${(c.description||'').replace(/'/g,"\\'")}')">编辑</button>
             <button class="action-btn ${c.is_published ? 'active-btn' : ''}" onclick="togglePublish(${c.id}, ${c.is_published})">${c.is_published ? '下线' : '发布'}</button>
             <button class="action-btn danger" onclick="deleteCol(${c.id})">删除</button>
           </td>
         </tr>`).join('');
     }
 
+    // ── Create/edit modal ────────────────────────────────────────
     window.openModal = () => {
       document.getElementById('edit-id').value = '';
       document.getElementById('modal-title').textContent = '新建专栏';
@@ -118,7 +185,6 @@
         await api.adminUpdateColumn(+id, { name, description: desc });
         closeModal(); loadColumns(); return;
       }
-      // New column: auto-generate slug with retry on conflict
       let slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 40);
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -150,6 +216,106 @@
           .toLowerCase().replace(/\s+/g,'-').replace(/[^\w-]/g,'').slice(0,40);
       }
     });
+
+    // ── Posts manager drawer ─────────────────────────────────────
+    let drawerColumnId = null;
+    let colPostIds = [];     // ordered list of post IDs currently in column
+    let allPosts   = [];     // all posts from admin list
+
+    window.openPostsDrawer = async (colId, colName) => {
+      drawerColumnId = colId;
+      document.getElementById('drawer-title').textContent = `管理文章 · ${colName}`;
+      document.getElementById('post-search').value = '';
+
+      // Load all posts and current column posts in parallel
+      const [postsRes, colPostsRes] = await Promise.all([
+        api.adminListPosts(1),
+        api.adminGetColumnPosts(colId),
+      ]);
+      allPosts   = postsRes.posts || [];
+      colPostIds = (colPostsRes.posts || []).map(p => p.id);
+
+      renderDrawer();
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawer-overlay').classList.add('show');
+    };
+
+    window.closeDrawer = () => {
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawer-overlay').classList.remove('show');
+    };
+
+    function renderDrawer(filter = '') {
+      // Left: current column posts in order
+      const colPosts = colPostIds.map(id => allPosts.find(p => p.id === id)).filter(Boolean);
+      document.getElementById('col-count').textContent = colPosts.length;
+      document.getElementById('col-posts-list').innerHTML = colPosts.length
+        ? colPosts.map((p, i) => `
+            <div class="post-item" data-id="${p.id}" draggable="true">
+              <span class="handle" title="拖拽排序">⠿</span>
+              <span class="title">${p.title}</span>
+              <span class="remove" onclick="removeFromColumn(${p.id})" title="移出专栏">×</span>
+            </div>`).join('')
+        : '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">暂无文章，从右侧添加</div>';
+
+      // Right: all posts not yet in column (filtered)
+      const inColumn = new Set(colPostIds);
+      const available = allPosts.filter(p =>
+        !inColumn.has(p.id) && (!filter || p.title.includes(filter))
+      );
+      document.getElementById('all-posts-list').innerHTML = available.length
+        ? available.map(p => `
+            <div class="post-item" onclick="addToColumn(${p.id})" title="点击添加到专栏">
+              <span class="title">${p.title}</span>
+              <span style="font-size:11px;color:var(--accent);flex-shrink:0">+ 添加</span>
+            </div>`).join('')
+        : `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">${filter ? '无匹配文章' : '所有文章已加入专栏'}</div>`;
+
+      initDrag();
+    }
+
+    window.addToColumn = (id) => {
+      if (!colPostIds.includes(id)) colPostIds.push(id);
+      renderDrawer(document.getElementById('post-search').value);
+    };
+
+    window.removeFromColumn = (id) => {
+      colPostIds = colPostIds.filter(i => i !== id);
+      renderDrawer(document.getElementById('post-search').value);
+    };
+
+    window.saveColumnPosts = async () => {
+      await api.adminSetColumnPosts(drawerColumnId, colPostIds);
+      closeDrawer();
+    };
+
+    // Search filter
+    document.getElementById('post-search').addEventListener('input', e => {
+      renderDrawer(e.target.value.trim());
+    });
+
+    // Drag-to-reorder (left pane)
+    function initDrag() {
+      const list = document.getElementById('col-posts-list');
+      let dragging = null;
+
+      list.querySelectorAll('[draggable]').forEach(el => {
+        el.addEventListener('dragstart', () => { dragging = el; el.style.opacity = '0.4'; });
+        el.addEventListener('dragend',   () => { dragging = null; el.style.opacity = '1'; });
+        el.addEventListener('dragover',  e => {
+          e.preventDefault();
+          if (!dragging || dragging === el) return;
+          const rect = el.getBoundingClientRect();
+          const mid  = rect.top + rect.height / 2;
+          el.parentNode.insertBefore(dragging, e.clientY < mid ? el : el.nextSibling);
+        });
+      });
+
+      list.addEventListener('drop', () => {
+        colPostIds = [...list.querySelectorAll('[data-id]')].map(el => +el.dataset.id);
+        document.getElementById('col-count').textContent = colPostIds.length;
+      });
+    }
 
     loadColumns();
   </script>
