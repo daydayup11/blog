@@ -25,6 +25,15 @@ func (h *ColumnHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"columns": cols})
 }
 
+func (h *ColumnHandler) AdminList(c *gin.Context) {
+	cols, err := h.columns.ListAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"columns": cols})
+}
+
 func (h *ColumnHandler) GetBySlug(c *gin.Context) {
 	col, err := h.columns.GetBySlug(c.Param("slug"))
 	if err != nil {
@@ -60,9 +69,15 @@ func (h *ColumnHandler) AdminUpdate(c *gin.Context) {
 		Name        string `json:"name"`
 		Description string `json:"description"`
 		CoverURL    string `json:"cover_url"`
+		Published   *bool  `json:"published"`
 	}
 	c.ShouldBindJSON(&req)
-	h.columns.Update(uint(id), req.Name, req.Description, req.CoverURL)
+	if req.Published != nil {
+		h.columns.SetPublished(uint(id), *req.Published)
+	}
+	if req.Name != "" {
+		h.columns.Update(uint(id), req.Name, req.Description, req.CoverURL)
+	}
 	c.Status(http.StatusNoContent)
 }
 

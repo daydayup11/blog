@@ -79,7 +79,7 @@
     document.getElementById('nav-root').innerHTML = renderAdminNav('columns');
 
     async function loadColumns() {
-      const { columns } = await api.getColumns();
+      const { columns } = await api.adminListColumns();
       const tbody = document.getElementById('col-tbody');
       if (!columns.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">暂无专栏</td></tr>'; return; }
       tbody.innerHTML = columns.map(c => `
@@ -89,6 +89,7 @@
           <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:${c.is_published ? 'var(--accent-dim)' : 'var(--bg-hover)'};color:${c.is_published ? 'var(--accent)' : 'var(--text-muted)'}">${c.is_published ? '已发布' : '草稿'}</span></td>
           <td style="display:flex;gap:6px">
             <button class="action-btn" onclick="editCol(${c.id},'${c.name}','${c.slug}','${(c.description||'').replace(/'/g,"\\'")}')">编辑</button>
+            <button class="action-btn ${c.is_published ? 'active-btn' : ''}" onclick="togglePublish(${c.id}, ${c.is_published})">${c.is_published ? '下线' : '发布'}</button>
             <button class="action-btn danger" onclick="deleteCol(${c.id})">删除</button>
           </td>
         </tr>`).join('');
@@ -131,6 +132,11 @@
         hint.textContent = slug + ' 已被使用，请换一个（如：' + slug + '-2）';
         hint.style.display = 'block';
       }
+    };
+
+    window.togglePublish = async (id, current) => {
+      await api.adminPublishColumn(id, { published: !current });
+      loadColumns();
     };
 
     window.deleteCol = async (id) => {

@@ -37,6 +37,12 @@ func (s *ColumnService) List() ([]model.Column, error) {
 	return cols, err
 }
 
+func (s *ColumnService) ListAll() ([]model.Column, error) {
+	var cols []model.Column
+	err := s.db.Order("created_at DESC").Find(&cols).Error
+	return cols, err
+}
+
 func (s *ColumnService) GetBySlug(slug string) (*model.Column, error) {
 	var col model.Column
 	if err := s.db.Where("slug = ? AND is_published = true", slug).First(&col).Error; err != nil {
