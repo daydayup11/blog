@@ -4,7 +4,7 @@ RUN apk add --no-cache gcc musl-dev
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=1 GOOS=linux go build -o server ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux CGO_CFLAGS="-D_LARGEFILE64_SOURCE" go build -o server ./cmd/server
 
 FROM alpine:3.19
 RUN apk add --no-cache sqlite-libs ca-certificates
