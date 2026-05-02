@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>编辑文章 | 后台</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .editor-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      height: calc(100vh - 220px);
+    }
+    .editor-pane {
+      display: flex; flex-direction: column;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .pane-label {
+      padding: 8px 14px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-muted); background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+    }
+    #md-input {
+      flex: 1; padding: 16px; background: var(--bg-card); color: var(--text-primary);
+      border: none; outline: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.7;
+    }
+    #md-preview { flex: 1; padding: 16px; overflow-y: auto; background: var(--bg-card); }
+    .meta-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .meta-field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px; }
+    .meta-field input, .meta-field textarea {
+      width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px;
+      background:var(--bg-card); color:var(--text-primary); font-size:13px; outline:none;
+    }
+    .meta-field input:focus, .meta-field textarea:focus { border-color:var(--accent); }
+    .save-btn {
+      padding:8px 20px; border:none; border-radius:6px;
+      background:var(--accent); color:#000; font-size:13px; font-weight:600; cursor:pointer;
+    }
+    .save-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .status-msg { font-size:13px; color:var(--text-muted); margin-left:12px; }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main style="max-width:1200px;margin:0 auto;padding:24px">
+
+    <div style="display:flex;align-items:center;margin-bottom:16px;gap:12px">
+      <h2 style="font-size:18px;font-weight:700" id="page-title">新建文章</h2>
+      <div style="margin-left:auto;display:flex;align-items:center">
+        <button class="save-btn" id="save-btn">保存</button>
+        <span class="status-msg" id="status-msg"></span>
+      </div>
+    </div>
+
+    <div class="meta-row">
+      <div class="meta-field">
+        <label>标题 *</label>
+        <input id="f-title" placeholder="文章标题">
+      </div>
+      <div class="meta-field">
+        <label>Slug *（URL路径）</label>
+        <input id="f-slug" placeholder="my-post-slug">
+      </div>
+      <div class="meta-field">
+        <label>标签（逗号分隔）</label>
+        <input id="f-tags" placeholder="Go, 并发, 实践">
+      </div>
+    </div>
+    <div class="meta-field" style="margin-bottom:16px">
+      <label>摘要</label>
+      <textarea id="f-summary" rows="2" placeholder="文章摘要，显示在列表页"></textarea>
+    </div>
+
+    <div class="editor-grid">
+      <div class="editor-pane">
+        <div class="pane-label" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Markdown 原文</span>
+          <div style="display:flex;gap:12px">
+            <label style="font-size:11px;color:var(--text-muted);cursor:pointer;letter-spacing:0;text-transform:none">
+              <input type="file" accept=".md,.markdown" id="md-import" style="display:none">
+              📄 导入 MD
+            </label>
+            <label style="font-size:11px;color:var(--text-muted);cursor:pointer;letter-spacing:0;text-transform:none">
+              <input type="file" accept="image/*" id="img-upload" style="display:none">
+              📎 插入图片
+            </label>
+          </div>
+        </div>
+        <textarea id="md-input" placeholder="在此输入 Markdown 内容..."></textarea>
+      </div>
+      <div class="editor-pane">
+        <div class="pane-label">预览</div>
+        <div id="md-preview" class="article-body"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('posts');
+
+    const params = new URLSearchParams(location.search);
+    const editSlug = params.get('slug');
+    let postId = null;
+
+    if (editSlug) {
+      document.getElementById('page-title').textContent = '编辑文章';
+      try {
+        const { post } = await api.getPost(editSlug);
+        postId = post.id;
+        document.getElementById('f-title').value = post.title;
+        document.getElementById('f-slug').value = post.slug;
+        document.getElementById('f-tags').value = JSON.parse(post.tags || '[]').join(', ');
+        document.getElementById('f-summary').value = post.summary || '';
+        document.getElementById('md-input').value = post.content || '';
+        updatePreview();
+      } catch {
+        document.getElementById('status-msg').textContent = '加载文章失败';
+      }
+    }
+
+    document.getElementById('f-title').addEventListener('input', e => {
+      if (!editSlug && !document.getElementById('f-slug').value) {
+        document.getElementById('f-slug').value = e.target.value
+          .toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 60);
+      }
+    });
+
+    function loadMarked(cb) {
+      if (window.marked) { cb(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+      s.onload = cb;
+      document.head.appendChild(s);
+    }
+
+    function updatePreview() {
+      const md = document.getElementById('md-input').value;
+      loadMarked(() => {
+        document.getElementById('md-preview').innerHTML = marked.parse(md);
+        hljs.highlightAll();
+      });
+    }
+
+    let previewTimer;
+    document.getElementById('md-input').addEventListener('input', () => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(updatePreview, 400);
+    });
+
+    // MD file import
+    document.getElementById('md-import').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        document.getElementById('md-input').value = ev.target.result;
+        updatePreview();
+        document.getElementById('status-msg').textContent = `已导入 ${file.name}`;
+      };
+      reader.readAsText(file, 'UTF-8');
+      e.target.value = '';
+    });
+
+    // Image upload
+    document.getElementById('img-upload').addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('status-msg').textContent = '上传中...';
+      try {
+        const { url } = await api.adminUpload(file);
+        const cursor = document.getElementById('md-input').selectionStart;
+        const current = document.getElementById('md-input').value;
+        const insert = `\n![${file.name}](${url})\n`;
+        document.getElementById('md-input').value = current.slice(0, cursor) + insert + current.slice(cursor);
+        updatePreview();
+        document.getElementById('status-msg').textContent = '图片已插入';
+      } catch {
+        document.getElementById('status-msg').textContent = '上传失败';
+      }
+      e.target.value = '';
+    });
+
+    document.getElementById('save-btn').addEventListener('click', async () => {
+      const title   = document.getElementById('f-title').value.trim();
+      const slug    = document.getElementById('f-slug').value.trim();
+      const content = document.getElementById('md-input').value;
+      const summary = document.getElementById('f-summary').value.trim();
+      const tags    = document.getElementById('f-tags').value
+        .split(',').map(t => t.trim()).filter(Boolean);
+
+      if (!title || !slug || !content) {
+        document.getElementById('status-msg').textContent = '标题、Slug、内容为必填项';
+        return;
+      }
+
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+      document.getElementById('status-msg').textContent = '';
+
+      try {
+        if (postId) {
+          await api.adminUpdatePost(postId, { title, content, summary, tags });
+        } else {
+          const post = await api.adminCreatePost({ title, slug, content, summary, tags });
+          postId = post.id;
+          history.replaceState(null, '', `/admin/editor.html?slug=${slug}`);
+          document.getElementById('page-title').textContent = '编辑文章';
+        }
+        document.getElementById('status-msg').textContent = '✓ 已保存 ' + new Date().toLocaleTimeString('zh-CN');
+      } catch (err) {
+        document.getElementById('status-msg').textContent = '保存失败: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '保存';
+      }
+    });
+  </script>
+</body>
+</html>
