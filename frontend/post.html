@@ -65,11 +65,12 @@
     api.trackPost(post.id);
     api.trackPage(location.pathname, document.referrer);
 
-    // Build TOC from h2/h3
-    const headings = document.querySelectorAll('.article-body h2, .article-body h3');
+    // Build TOC from h2/h3/h4 with multi-level indentation
+    const headings = document.querySelectorAll('.article-body h2, .article-body h3, .article-body h4');
     if (headings.length) {
+      const classMap = { H2: 'toc-h2', H3: 'toc-h3', H4: 'toc-h4' };
       document.getElementById('toc-links').innerHTML = [...headings].map(h => `
-        <a href="#${h.id}" class="${h.tagName === 'H3' ? 'toc-h3' : ''}">${h.textContent}</a>
+        <a href="#${h.id}" class="${classMap[h.tagName] || 'toc-h2'}">${h.textContent}</a>
       `).join('');
     } else {
       document.getElementById('toc').style.display = 'none';
