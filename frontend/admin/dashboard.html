@@ -45,9 +45,14 @@
       <canvas id="stats-chart" height="120"></canvas>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-bottom:28px">
       <div class="section-title" style="margin-bottom:16px">热门文章 Top 10</div>
       <div id="top-posts"><div class="loading">加载中...</div></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:16px">页面访问明细（Top 30）</div>
+      <div id="page-stats"><div class="loading">加载中...</div></div>
     </div>
 
   </main>
@@ -78,6 +83,27 @@
               <span style="flex:1;font-size:14px">${p.title}</span>
               <span style="font-size:13px;color:var(--text-muted)">👁 ${p.views}</span>
             </div>`).join('')
+        : '<div class="empty">暂无数据</div>';
+
+      const pages = data.pages || [];
+      document.getElementById('page-stats').innerHTML = pages.length
+        ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500">页面路径</th>
+                <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;width:70px">PV</th>
+                <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;width:70px">UV</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pages.map(p => `
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:7px 8px;color:var(--text-primary);font-family:monospace;font-size:12px">${p.path}</td>
+                  <td style="padding:7px 8px;text-align:right;color:var(--text-secondary)">${p.pv}</td>
+                  <td style="padding:7px 8px;text-align:right;color:var(--text-muted)">${p.uv}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`
         : '<div class="empty">暂无数据</div>';
     }
 

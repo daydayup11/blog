@@ -88,10 +88,25 @@ func (s *StatsService) AdminStats(days int) map[string]interface{} {
 		LIMIT 10
 	`).Scan(&top)
 
+	type pageStats struct {
+		Path string `json:"path"`
+		PV   int    `json:"pv"`
+		UV   int    `json:"uv"`
+	}
+	var pages []pageStats
+	s.db.Model(&model.PageView{}).
+		Select("path, count(*) as pv, count(distinct visitor_hash) as uv").
+		Where("strftime('%Y-%m-%d', created_at) >= ?", since).
+		Group("path").
+		Order("pv DESC").
+		Limit(30).
+		Scan(&pages)
+
 	return map[string]interface{}{
 		"total_pv":  totalPV,
 		"total_uv":  totalUV,
 		"daily":     rows,
 		"top_posts": top,
+		"pages":     pages,
 	}
 }
