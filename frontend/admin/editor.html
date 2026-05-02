@@ -47,8 +47,9 @@
 
     <div style="display:flex;align-items:center;margin-bottom:16px;gap:12px">
       <h2 style="font-size:18px;font-weight:700" id="page-title">新建文章</h2>
-      <div style="margin-left:auto;display:flex;align-items:center">
-        <button class="save-btn" id="save-btn">保存</button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <button class="save-btn" id="save-btn" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)">保存草稿</button>
+        <button class="save-btn" id="publish-btn">保存并发布</button>
         <span class="status-msg" id="status-msg"></span>
       </div>
     </div>
@@ -188,7 +189,7 @@
       e.target.value = '';
     });
 
-    document.getElementById('save-btn').addEventListener('click', async () => {
+    async function doSave(andPublish = false) {
       const title   = document.getElementById('f-title').value.trim();
       const slug    = document.getElementById('f-slug').value.trim();
       const content = document.getElementById('md-input').value;
@@ -201,9 +202,9 @@
         return;
       }
 
-      const btn = document.getElementById('save-btn');
-      btn.disabled = true;
-      btn.textContent = '保存中...';
+      const saveBtn    = document.getElementById('save-btn');
+      const publishBtn = document.getElementById('publish-btn');
+      saveBtn.disabled = publishBtn.disabled = true;
       document.getElementById('status-msg').textContent = '';
 
       try {
@@ -215,14 +216,21 @@
           history.replaceState(null, '', `/admin/editor.html?slug=${slug}`);
           document.getElementById('page-title').textContent = '编辑文章';
         }
-        document.getElementById('status-msg').textContent = '✓ 已保存 ' + new Date().toLocaleTimeString('zh-CN');
+        if (andPublish) {
+          await api.adminPublishPost(postId, true);
+          document.getElementById('status-msg').textContent = '✓ 已发布 ' + new Date().toLocaleTimeString('zh-CN');
+        } else {
+          document.getElementById('status-msg').textContent = '✓ 已保存草稿 ' + new Date().toLocaleTimeString('zh-CN');
+        }
       } catch (err) {
-        document.getElementById('status-msg').textContent = '保存失败: ' + err.message;
+        document.getElementById('status-msg').textContent = '失败: ' + err.message;
       } finally {
-        btn.disabled = false;
-        btn.textContent = '保存';
+        saveBtn.disabled = publishBtn.disabled = false;
       }
-    });
+    }
+
+    document.getElementById('save-btn').addEventListener('click', () => doSave(false));
+    document.getElementById('publish-btn').addEventListener('click', () => doSave(true));
   </script>
 </body>
 </html>
