@@ -102,10 +102,10 @@
           <div style="font-size:12px;color:var(--text-muted)">在后台项目管理中填写 Demo URL（支持 B 站链接、图片、自部署地址）</div>
         </div>`;
 
-    // 自定义分区：加载 slug 以 works- 开头的 garden sections
+    // 自定义分区：加载 works 专属板块
     try {
-      const { sections } = await api.getGardenSections();
-      const worksSections = sections.filter(s => s.slug.startsWith('works-'));
+      const { sections } = await api.getWorksSections();
+      const worksSections = sections;
       if (worksSections.length) {
         const parts = await Promise.all(worksSections.map(async sec => {
           const { items } = await api.getGardenItems(sec.id, '', '');
@@ -125,7 +125,7 @@
         document.getElementById('custom-sections').innerHTML =
           `<div class="empty">
             <div style="margin-bottom:8px">暂无自定义板块</div>
-            <div style="font-size:12px;color:var(--text-muted)">在后台花园管理中创建 slug 以 works- 开头的板块（如 works-tools）</div>
+            <div style="font-size:12px;color:var(--text-muted)">在后台作品集管理中添加自定义板块</div>
           </div>`;
       }
     } catch {

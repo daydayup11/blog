@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/daiyutong/blog/internal/model"
@@ -17,12 +18,31 @@ func NewGardenService(db *gorm.DB) *GardenService {
 
 func (s *GardenService) ListSections() ([]model.GardenSection, error) {
 	var sections []model.GardenSection
-	err := s.db.Where("is_visible = true").Order("sort_order ASC").Find(&sections).Error
+	err := s.db.Where("is_visible = true AND page = 'garden'").Order("sort_order ASC").Find(&sections).Error
+	return sections, err
+}
+
+func (s *GardenService) ListWorksSections() ([]model.GardenSection, error) {
+	var sections []model.GardenSection
+	err := s.db.Where("is_visible = true AND page = 'works'").Order("sort_order ASC").Find(&sections).Error
+	return sections, err
+}
+
+func (s *GardenService) ListAllSections() ([]model.GardenSection, error) {
+	var sections []model.GardenSection
+	err := s.db.Order("page ASC, sort_order ASC").Find(&sections).Error
 	return sections, err
 }
 
 func (s *GardenService) CreateSection(name, slug string) (*model.GardenSection, error) {
-	sec := &model.GardenSection{Name: name, Slug: slug, CreatedAt: time.Now()}
+	sec := &model.GardenSection{Name: name, Slug: slug, Page: "garden", CreatedAt: time.Now()}
+	return sec, s.db.Create(sec).Error
+}
+
+func (s *GardenService) CreateWorksSection(name string) (*model.GardenSection, error) {
+	// Auto-generate unique slug: works-<timestamp>
+	slug := fmt.Sprintf("works-%d", time.Now().UnixNano())
+	sec := &model.GardenSection{Name: name, Slug: slug, Page: "works", CreatedAt: time.Now()}
 	return sec, s.db.Create(sec).Error
 }
 

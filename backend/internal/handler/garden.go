@@ -19,6 +19,32 @@ func (h *GardenHandler) ListSections(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"sections": sections})
 }
 
+func (h *GardenHandler) ListWorksSections(c *gin.Context) {
+	sections, _ := h.garden.ListWorksSections()
+	c.JSON(http.StatusOK, gin.H{"sections": sections})
+}
+
+func (h *GardenHandler) AdminListAllSections(c *gin.Context) {
+	sections, _ := h.garden.ListAllSections()
+	c.JSON(http.StatusOK, gin.H{"sections": sections})
+}
+
+func (h *GardenHandler) AdminCreateWorksSection(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	sec, err := h.garden.CreateWorksSection(req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, sec)
+}
+
 func (h *GardenHandler) ListItems(c *gin.Context) {
 	sectionID, _ := strconv.ParseUint(c.Query("section_id"), 10, 64)
 	items, _ := h.garden.ListItems(uint(sectionID), c.Query("type"), c.Query("tag"))

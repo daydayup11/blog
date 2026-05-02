@@ -20,6 +20,7 @@ export const api = {
   getColumn:   (slug)        => request(`/columns/${slug}`),
   getProjects: ()            => request('/projects'),
   getGardenSections: ()                    => request('/garden/sections'),
+  getWorksSections:  ()                    => request('/works/sections'),
   getGardenItems:    (sectionId, type = '', tag = '') => request(`/garden/items?section_id=${sectionId}${type ? '&type=' + type : ''}${tag ? '&tag=' + encodeURIComponent(tag) : ''}`),
   trackPage: (path, referrer = '') =>
     request('/track/page', { method: 'POST', body: JSON.stringify({ path, referrer }) }),
@@ -36,6 +37,8 @@ export const api = {
   adminPinPost:     (id, pinned) => request(`/admin/posts/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pinned }) }),
   adminPublishPost: (id, published) => request(`/admin/posts/${id}/publish`, { method: 'PUT', body: JSON.stringify({ published }) }),
   adminListColumns: () => request('/admin/columns'),
+  adminListAllSections: () => request('/admin/garden/sections'),
+  adminCreateWorksSection: (data) => request('/admin/works/sections', { method: 'POST', body: JSON.stringify(data) }),
   adminGetColumnPosts: (id) => request(`/admin/columns/${id}/posts`),
   adminCreateColumn: (data) => request('/admin/columns', { method: 'POST', body: JSON.stringify(data) }),
   adminUpdateColumn: (id, data) => request(`/admin/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

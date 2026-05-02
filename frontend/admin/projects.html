@@ -27,8 +27,14 @@
 <body>
   <div id="nav-root"></div>
   <main class="page">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="projects">项目</button>
+      <button class="tab-btn" data-tab="custom">自定义板块</button>
+    </div>
+
+    <!-- Projects Tab -->
+    <div class="tab-panel active" id="tab-projects">
     <div style="display:flex;align-items:center;margin-bottom:20px">
-      <h2 style="font-size:18px;font-weight:700">项目管理</h2>
       <button onclick="openModal()" style="margin-left:auto;padding:7px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">+ 新建项目</button>
     </div>
 
@@ -45,6 +51,16 @@
         </thead>
         <tbody id="proj-tbody"><tr><td colspan="5" class="loading">加载中...</td></tr></tbody>
       </table>
+    </div>
+    </div><!-- end tab-projects -->
+
+    <!-- Custom Sections Tab -->
+    <div class="tab-panel" id="tab-custom">
+      <div style="display:flex;align-items:center;margin-bottom:20px">
+        <div style="font-size:13px;color:var(--text-muted)">板块内容显示在作品集「自定义」标签页</div>
+        <button onclick="openSectionModal()" style="margin-left:auto;padding:7px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">+ 新建板块</button>
+      </div>
+      <div id="works-sections"><div class="loading">加载中...</div></div>
     </div>
   </main>
 
@@ -173,7 +189,129 @@
       loadProjects();
     };
 
+    // ── Tab switching ────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'custom') loadWorksSections();
+      });
+    });
+
+    // ── Works custom sections ────────────────────────────────────
+    let activeSectionId = null;
+
+    async function loadWorksSections() {
+      const { sections } = await api.adminListAllSections();
+      const worksSections = sections.filter(s => s.page === 'works');
+      const container = document.getElementById('works-sections');
+      if (!worksSections.length) {
+        container.innerHTML = '<div class="empty">暂无自定义板块，点击右上角新建</div>';
+        return;
+      }
+      container.innerHTML = worksSections.map(sec => `
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;margin-bottom:12px">
+            <span style="font-size:15px;font-weight:600">${sec.name}</span>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              <button class="action-btn" onclick="openAddItemModal(${sec.id})">+ 添加条目</button>
+              <button class="action-btn danger" onclick="deleteWorksSection(${sec.id})">删除板块</button>
+            </div>
+          </div>
+          <div id="items-${sec.id}" class="loading" style="font-size:13px">加载中...</div>
+        </div>`).join('');
+      worksSections.forEach(sec => loadSectionItems(sec.id));
+    }
+
+    async function loadSectionItems(sectionId) {
+      const { items } = await api.getGardenItems(sectionId, '', '');
+      const container = document.getElementById(`items-${sectionId}`);
+      if (!items.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:13px">暂无条目</div>'; return; }
+      container.innerHTML = items.map(item => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="flex:1;font-size:13px">${item.title}</span>
+          ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:12px;color:var(--text-muted)">🔗</a>` : ''}
+          <button class="action-btn danger" onclick="deleteItem(${item.id}, ${sectionId})" style="padding:2px 8px">删除</button>
+        </div>`).join('');
+    }
+
+    window.deleteWorksSection = async (id) => {
+      if (!confirm('删除板块会同时删除其下所有条目，确认？')) return;
+      await api.adminDeleteSection(id);
+      loadWorksSections();
+    };
+
+    window.deleteItem = async (itemId, sectionId) => {
+      await api.adminDeleteItem(itemId);
+      loadSectionItems(sectionId);
+    };
+
+    // Section modal
+    let addItemSectionId = null;
+    window.openSectionModal = () => {
+      document.getElementById('sec-modal').classList.add('show');
+      document.getElementById('sec-name-input').value = '';
+    };
+    window.openAddItemModal = (sectionId) => {
+      addItemSectionId = sectionId;
+      ['item-title-i','item-url-i','item-summary-i','item-embed-i'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('item-modal').classList.add('show');
+    };
+
+    window.saveSection = async () => {
+      const name = document.getElementById('sec-name-input').value.trim();
+      if (!name) return;
+      await api.adminCreateWorksSection({ name });
+      document.getElementById('sec-modal').classList.remove('show');
+      loadWorksSections();
+    };
+
+    window.saveItem = async () => {
+      const data = {
+        section_id: addItemSectionId,
+        type:       'other',
+        title:      document.getElementById('item-title-i').value.trim(),
+        url:        document.getElementById('item-url-i').value.trim(),
+        summary:    document.getElementById('item-summary-i').value.trim(),
+        embed_url:  document.getElementById('item-embed-i').value.trim(),
+        tags:       '[]',
+      };
+      if (!data.title) return;
+      await api.adminCreateItem(data);
+      document.getElementById('item-modal').classList.remove('show');
+      loadSectionItems(addItemSectionId);
+    };
+
     loadProjects();
   </script>
+
+  <!-- New section modal -->
+  <div class="modal-overlay" id="sec-modal">
+    <div class="modal" style="width:360px">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:16px">新建自定义板块</h3>
+      <div class="form-field"><label>板块名称 *</label><input id="sec-name-input" placeholder="工具箱"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="action-btn" onclick="document.getElementById('sec-modal').classList.remove('show')">取消</button>
+        <button onclick="saveSection()" style="padding:6px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add item modal -->
+  <div class="modal-overlay" id="item-modal">
+    <div class="modal" style="width:440px">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:16px">添加条目</h3>
+      <div class="form-field"><label>标题 *</label><input id="item-title-i" placeholder="条目标题"></div>
+      <div class="form-field"><label>链接</label><input id="item-url-i" placeholder="https://..."></div>
+      <div class="form-field"><label>简介</label><input id="item-summary-i" placeholder="简短描述"></div>
+      <div class="form-field"><label>嵌入链接（B站/图片/自部署）</label><input id="item-embed-i" placeholder="https://..."></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="action-btn" onclick="document.getElementById('item-modal').classList.remove('show')">取消</button>
+        <button onclick="saveItem()" style="padding:6px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">添加</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

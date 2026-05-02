@@ -6,6 +6,7 @@ type GardenSection struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Name      string    `gorm:"not null" json:"name"`
 	Slug      string    `gorm:"uniqueIndex;not null" json:"slug"`
+	Page      string    `gorm:"default:'garden'" json:"page"` // garden | works
 	SortOrder int       `gorm:"default:0" json:"sort_order"`
 	IsVisible bool      `gorm:"default:true" json:"is_visible"`
 	CreatedAt time.Time `json:"created_at"`
