@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目管理 | 后台</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .action-btn { padding:3px 10px; border-radius:4px; font-size:12px; cursor:pointer; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); }
+    .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .action-btn.danger:hover { border-color:#f87171; color:#f87171; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px; width:520px; max-width:90vw; max-height:90vh; overflow-y:auto; }
+    .form-field { margin-bottom:12px; }
+    .form-field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px; }
+    .form-field input { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; background:var(--bg-secondary); color:var(--text-primary); font-size:13px; outline:none; }
+    .form-field input:focus { border-color:var(--accent); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; padding:8px 12px; color:var(--text-muted); font-weight:500; border-bottom:1px solid var(--border); }
+    td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page">
+    <div style="display:flex;align-items:center;margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700">项目管理</h2>
+      <button onclick="openModal()" style="margin-left:auto;padding:7px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">+ 新建项目</button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>项目名</th>
+            <th>技术栈</th>
+            <th style="width:60px">Stars</th>
+            <th style="width:70px">精选</th>
+            <th style="width:140px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="proj-tbody"><tr><td colspan="5" class="loading">加载中...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:18px" id="modal-title">新建项目</h3>
+      <input type="hidden" id="edit-id">
+      <div class="grid-2">
+        <div class="form-field"><label>项目名 *</label><input id="f-name" placeholder="my-project"></div>
+        <div class="form-field"><label>Stars</label><input id="f-stars" type="number" placeholder="0"></div>
+      </div>
+      <div class="form-field"><label>描述</label><input id="f-desc" placeholder="项目简介"></div>
+      <div class="grid-2">
+        <div class="form-field"><label>GitHub URL</label><input id="f-repo" placeholder="https://github.com/..."></div>
+        <div class="form-field">
+          <label>Demo URL
+            <label style="float:right;font-size:11px;color:var(--accent);cursor:pointer;font-weight:normal">
+              <input type="file" accept=".pdf" id="pdf-upload-proj" style="display:none">
+              ⬆ 上传 PDF
+            </label>
+          </label>
+          <input id="f-demo" placeholder="https://... 或上传 PDF 后自动填入">
+        </div>
+      </div>
+      <div class="form-field"><label>技术栈（逗号分隔）</label><input id="f-stack" placeholder="Go, Docker, React"></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="f-featured" style="width:auto">
+        <label for="f-featured" style="font-size:13px;color:var(--text-primary);cursor:pointer">精选项目（显示在主页）</label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="action-btn" onclick="closeModal()">取消</button>
+        <button onclick="saveProject()" style="padding:6px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('projects');
+
+    async function loadProjects() {
+      const { projects } = await api.getProjects();
+      const tbody = document.getElementById('proj-tbody');
+      if (!projects.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无项目</td></tr>'; return; }
+      tbody.innerHTML = projects.map(p => {
+        const stack = JSON.parse(p.tech_stack || '[]').join(', ');
+        return `
+          <tr>
+            <td><a href="${p.repo_url || '#'}" target="_blank" style="color:var(--text-primary)">${p.name}</a></td>
+            <td style="color:var(--text-muted);font-size:12px">${stack}</td>
+            <td style="color:var(--text-muted)">⭐ ${p.stars}</td>
+            <td>${p.is_featured ? '<span style="color:var(--accent)">✓</span>' : '—'}</td>
+            <td style="display:flex;gap:6px">
+              <button class="action-btn" onclick='editProj(${JSON.stringify(p)})'>编辑</button>
+              <button class="action-btn danger" onclick="deleteProj(${p.id})">删除</button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    window.openModal = () => {
+      document.getElementById('edit-id').value = '';
+      document.getElementById('modal-title').textContent = '新建项目';
+      ['f-name','f-stars','f-desc','f-repo','f-demo','f-stack'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f-featured').checked = false;
+      document.getElementById('modal').classList.add('show');
+    };
+    window.closeModal = () => document.getElementById('modal').classList.remove('show');
+
+    window.editProj = (p) => {
+      document.getElementById('edit-id').value = p.id;
+      document.getElementById('modal-title').textContent = '编辑项目';
+      document.getElementById('f-name').value = p.name;
+      document.getElementById('f-stars').value = p.stars;
+      document.getElementById('f-desc').value = p.description || '';
+      document.getElementById('f-repo').value = p.repo_url || '';
+      document.getElementById('f-demo').value = p.demo_url || '';
+      document.getElementById('f-stack').value = JSON.parse(p.tech_stack || '[]').join(', ');
+      document.getElementById('f-featured').checked = p.is_featured;
+      document.getElementById('modal').classList.add('show');
+    };
+
+    // PDF upload for demo_url
+    document.getElementById('pdf-upload-proj').addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const input = document.getElementById('f-demo');
+      input.placeholder = '上传中...';
+      try {
+        const { url } = await api.adminUpload(file);
+        input.value = url;
+        input.placeholder = 'https://... 或上传 PDF 后自动填入';
+      } catch {
+        input.placeholder = '上传失败，请重试';
+      }
+      e.target.value = '';
+    });
+
+    window.saveProject = async () => {
+      const id = document.getElementById('edit-id').value;
+      const data = {
+        name:        document.getElementById('f-name').value.trim(),
+        description: document.getElementById('f-desc').value.trim(),
+        repo_url:    document.getElementById('f-repo').value.trim(),
+        demo_url:    document.getElementById('f-demo').value.trim(),
+        tech_stack:  document.getElementById('f-stack').value.split(',').map(s=>s.trim()).filter(Boolean),
+        stars:       +document.getElementById('f-stars').value || 0,
+        is_featured: document.getElementById('f-featured').checked,
+        sort_order:  0,
+      };
+      if (!data.name) return;
+      if (id) { await api.adminUpdateProject(+id, data); }
+      else    { await api.adminCreateProject(data); }
+      closeModal();
+      loadProjects();
+    };
+
+    window.deleteProj = async (id) => {
+      if (!confirm('确认删除该项目？')) return;
+      await api.adminDeleteProject(id);
+      loadProjects();
+    };
+
+    loadProjects();
+  </script>
+</body>
+</html>
