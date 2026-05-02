@@ -54,17 +54,10 @@
       </div>
     </div>
 
-    <div class="meta-row">
+    <div class="meta-row" style="grid-template-columns:1fr 1fr">
       <div class="meta-field">
         <label>标题 *</label>
         <input id="f-title" placeholder="文章标题">
-      </div>
-      <div class="meta-field">
-        <label>Slug *
-          <span style="font-weight:normal;font-size:11px;color:var(--text-muted)">（文章 URL 的唯一标识，只含字母/数字/短横线，自动生成）</span>
-        </label>
-        <input id="f-slug" placeholder="my-post-slug，已有则换一个">
-        <div id="slug-hint" style="font-size:11px;margin-top:3px;display:none"></div>
       </div>
       <div class="meta-field">
         <label>标签
@@ -74,6 +67,9 @@
         <div id="existing-tags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px"></div>
       </div>
     </div>
+    <!-- slug hidden, auto-generated from title -->
+    <input type="hidden" id="f-slug">
+    <div id="slug-hint" style="font-size:11px;color:#f87171;margin-bottom:8px;display:none"></div>
     <div class="meta-field" style="margin-bottom:16px">
       <label>摘要</label>
       <textarea id="f-summary" rows="2" placeholder="文章摘要，显示在列表页"></textarea>
@@ -223,9 +219,15 @@
       const tags    = document.getElementById('f-tags').value
         .split(',').map(t => t.trim()).filter(Boolean);
 
-      if (!title || !slug || !content) {
-        document.getElementById('status-msg').textContent = '标题、Slug、内容为必填项';
+      if (!title || !content) {
+        document.getElementById('status-msg').textContent = '标题和内容为必填项';
         return;
+      }
+      // Auto-generate slug from title if empty
+      if (!slug) {
+        document.getElementById('f-slug').value = title
+          .toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')
+          .slice(0, 60) + '-' + Date.now().toString(36);
       }
 
       const saveBtn    = document.getElementById('save-btn');
@@ -233,15 +235,25 @@
       saveBtn.disabled = publishBtn.disabled = true;
       document.getElementById('status-msg').textContent = '';
 
-      const slugHint = document.getElementById('slug-hint');
-      slugHint.style.display = 'none';
       try {
         if (postId) {
           await api.adminUpdatePost(postId, { title, content, summary, tags });
         } else {
-          const post = await api.adminCreatePost({ title, slug, content, summary, tags });
+          let currentSlug = document.getElementById('f-slug').value.trim();
+          let post;
+          // Retry with suffix if slug conflicts
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              post = await api.adminCreatePost({ title, slug: currentSlug, content, summary, tags });
+              break;
+            } catch {
+              currentSlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 50)
+                + '-' + Date.now().toString(36);
+              document.getElementById('f-slug').value = currentSlug;
+            }
+          }
           postId = post.id;
-          history.replaceState(null, '', `/admin/editor.html?slug=${slug}`);
+          history.replaceState(null, '', `/admin/editor.html?slug=${currentSlug}`);
           document.getElementById('page-title').textContent = '编辑文章';
         }
         if (andPublish) {
@@ -251,12 +263,7 @@
           document.getElementById('status-msg').textContent = '✓ 已保存草稿 ' + new Date().toLocaleTimeString('zh-CN');
         }
       } catch (err) {
-        if (err.message.includes('500') && !postId) {
-          slugHint.style.color = '#f87171';
-          slugHint.textContent = 'Slug "' + slug + '" 已被使用，请在上方修改为其他值';
-          slugHint.style.display = 'block';
-        }
-        document.getElementById('status-msg').textContent = '失败: ' + err.message;
+        document.getElementById('status-msg').textContent = '保存失败: ' + err.message;
       } finally {
         saveBtn.disabled = publishBtn.disabled = false;
       }

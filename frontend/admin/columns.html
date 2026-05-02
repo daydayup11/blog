@@ -55,13 +55,8 @@
       <h3 style="font-size:16px;font-weight:700;margin-bottom:18px" id="modal-title">新建专栏</h3>
       <input type="hidden" id="edit-id">
       <div class="form-field"><label>专栏名 *</label><input id="f-name" placeholder="Go 从入门到实践"></div>
-      <div class="form-field">
-        <label>Slug *
-          <span style="font-weight:normal;color:var(--text-muted)">（URL 中的唯一标识，只能含字母/数字/短横线，自动生成）</span>
-        </label>
-        <input id="f-slug" placeholder="go-series，如已存在请修改">
-        <div id="slug-hint" style="font-size:11px;margin-top:4px;display:none"></div>
-      </div>
+      <input type="hidden" id="f-slug">
+      <div id="slug-hint" style="font-size:11px;color:#f87171;margin-top:-8px;margin-bottom:8px;display:none"></div>
       <div class="form-field"><label>简介</label><textarea id="f-desc" rows="2" placeholder="专栏简介"></textarea></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
         <button class="action-btn" onclick="closeModal()">取消</button>
@@ -117,21 +112,25 @@
     window.saveColumn = async () => {
       const id   = document.getElementById('edit-id').value;
       const name = document.getElementById('f-name').value.trim();
-      const slug = document.getElementById('f-slug').value.trim();
       const desc = document.getElementById('f-desc').value.trim();
-      if (!name || !slug) return;
-      const hint = document.getElementById('slug-hint');
-      try {
-        if (id) { await api.adminUpdateColumn(+id, { name, description: desc }); }
-        else    { await api.adminCreateColumn({ name, slug, description: desc }); }
-        hint.style.display = 'none';
-        closeModal();
-        loadColumns();
-      } catch (err) {
-        hint.style.color = '#f87171';
-        hint.textContent = slug + ' 已被使用，请换一个（如：' + slug + '-2）';
-        hint.style.display = 'block';
+      if (!name) return;
+      if (id) {
+        await api.adminUpdateColumn(+id, { name, description: desc });
+        closeModal(); loadColumns(); return;
       }
+      // New column: auto-generate slug with retry on conflict
+      let slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 40);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await api.adminCreateColumn({ name, slug, description: desc });
+          closeModal(); loadColumns(); return;
+        } catch {
+          slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 36)
+            + '-' + Date.now().toString(36);
+        }
+      }
+      document.getElementById('slug-hint').textContent = '创建失败，请重试';
+      document.getElementById('slug-hint').style.display = 'block';
     };
 
     window.togglePublish = async (id, current) => {
