@@ -77,6 +77,64 @@
       document.getElementById('layout').style.gridTemplateColumns = '1fr';
     }
 
+    // Prev/Next navigation
+    const params = new URLSearchParams(location.search);
+    const columnSlug = params.get('column');
+    const postNav = document.getElementById('post-nav');
+
+    if (columnSlug) {
+      try {
+        const { column, posts: colPosts } = await api.getColumn(columnSlug);
+        const idx = colPosts.findIndex(p => p.slug === slug);
+        const prev = idx > 0 ? colPosts[idx - 1] : null;
+        const next = idx < colPosts.length - 1 ? colPosts[idx + 1] : null;
+        const colLink = `<a href="/column.html?slug=${columnSlug}"
+          style="font-size:12px;color:var(--accent);display:block;margin-bottom:12px">
+          ↑ 返回专栏：${column.name}
+        </a>`;
+        const prevHtml = prev
+          ? `<a href="/post.html?slug=${prev.slug}&column=${columnSlug}"
+              style="max-width:45%;text-decoration:none">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">← 上一篇</div>
+              <div style="font-size:14px;color:var(--text-primary)">${prev.title}</div>
+            </a>`
+          : '<div></div>';
+        const nextHtml = next
+          ? `<a href="/post.html?slug=${next.slug}&column=${columnSlug}"
+              style="max-width:45%;text-align:right;text-decoration:none">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">下一篇 →</div>
+              <div style="font-size:14px;color:var(--text-primary)">${next.title}</div>
+            </a>`
+          : '<div></div>';
+        postNav.innerHTML = `
+          ${colLink}
+          <div style="display:flex;justify-content:space-between;width:100%">
+            ${prevHtml}${nextHtml}
+          </div>`;
+      } catch { /* no column nav if fetch fails */ }
+    } else {
+      // Global prev/next by time — load surrounding posts
+      try {
+        const { posts } = await api.getPosts({ page: 1 });
+        const idx = posts.findIndex(p => p.slug === slug);
+        const prev = idx < posts.length - 1 ? posts[idx + 1] : null;
+        const next = idx > 0 ? posts[idx - 1] : null;
+        const prevHtml = prev
+          ? `<a href="/post.html?slug=${prev.slug}" style="max-width:45%;text-decoration:none">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">← 上一篇</div>
+              <div style="font-size:14px;color:var(--text-primary)">${prev.title}</div>
+            </a>`
+          : '<div></div>';
+        const nextHtml = next
+          ? `<a href="/post.html?slug=${next.slug}" style="max-width:45%;text-align:right;text-decoration:none">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">下一篇 →</div>
+              <div style="font-size:14px;color:var(--text-primary)">${next.title}</div>
+            </a>`
+          : '<div></div>';
+        postNav.innerHTML = `<div style="display:flex;justify-content:space-between;width:100%">${prevHtml}${nextHtml}</div>`;
+      } catch { /* ignore */ }
+    }
+
     // TOC scroll highlight
     const tocLinks = document.querySelectorAll('.toc a');
     const io = new IntersectionObserver(entries => {
