@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>作品集 | 戴宇彤</title>
-  <script>
-  (function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
-</script>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
   <link rel="stylesheet" href="/css/theme-dark.css">
   <link rel="stylesheet" href="/css/theme-light.css">
   <link rel="stylesheet" href="/css/common.css">
@@ -14,23 +12,10 @@
 <body>
   <div id="nav-root"></div>
   <main class="page-wide">
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="projects">项目</button>
-      <button class="tab-btn" data-tab="demos">系统演示</button>
-      <button class="tab-btn" data-tab="custom">自定义</button>
-    </div>
-
-    <div class="tab-panel active" id="tab-projects">
-      <div class="grid-3" id="project-list"><div class="loading">加载中...</div></div>
-    </div>
-
-    <div class="tab-panel" id="tab-demos">
-      <div id="demo-list" style="display:flex;flex-direction:column;gap:24px"></div>
-    </div>
-
-    <div class="tab-panel" id="tab-custom">
-      <div id="custom-sections"><div class="loading">加载中...</div></div>
-    </div>
+    <!-- Tabs rendered dynamically -->
+    <div class="tabs" id="works-tabs"></div>
+    <!-- Panels rendered dynamically -->
+    <div id="works-panels"></div>
   </main>
 
   <script type="module">
@@ -39,98 +24,128 @@
 
     document.getElementById('nav-root').innerHTML = renderNav('works');
 
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      });
-    });
-
     const api = await getApi();
     api.trackPage(location.pathname, document.referrer);
 
-    const { projects } = await api.getProjects();
-
-    document.getElementById('project-list').innerHTML = projects.length
-      ? projects.map(p => `
-          <div class="card">
-            <div style="font-size:16px;font-weight:600;margin-bottom:6px">${p.name}</div>
-            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;min-height:36px">${p.description || ''}</div>
-            <div style="margin-bottom:10px;display:flex;gap:4px;flex-wrap:wrap">${renderBadges(p.tech_stack)}</div>
-            <div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted)">
-              ${p.stars ? `<span>⭐ ${p.stars}</span>` : ''}
-              ${p.repo_url ? `<a href="${p.repo_url}" target="_blank">GitHub →</a>` : ''}
-              ${p.demo_url ? `<a href="${p.demo_url}" target="_blank">Demo →</a>` : ''}
-            </div>
-          </div>`).join('')
-      : '<div class="empty">暂无项目</div>';
-
     function renderDemoEmbed(url) {
       const u = url.toLowerCase();
-      // B站视频：支持 /video/BVxxx 或 bilibili.com
       const bvMatch = url.match(/(?:bilibili\.com\/video\/|^)(BV[\w]+)/i);
       if (bvMatch) {
-        const bvid = bvMatch[1];
-        return `<iframe src="//player.bilibili.com/player.html?bvid=${bvid}&page=1&high_quality=1&danmaku=0"
+        return `<iframe src="//player.bilibili.com/player.html?bvid=${bvMatch[1]}&page=1&high_quality=1&danmaku=0"
           style="width:100%;height:480px;border:1px solid var(--border);border-radius:6px"
           allowfullscreen scrolling="no" frameborder="0"></iframe>`;
       }
-      // 图片
       if (/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/.test(u)) {
         return `<img src="${url}" style="max-width:100%;border-radius:6px;border:1px solid var(--border)">`;
       }
-      // PDF
       if (u.endsWith('.pdf')) {
         return `<embed src="${url}" type="application/pdf" style="width:100%;height:600px;border:1px solid var(--border);border-radius:6px">`;
       }
-      // 默认 iframe（自部署服务等）
       return `<iframe src="${url}" style="width:100%;height:480px;border:1px solid var(--border);border-radius:6px" loading="lazy"></iframe>`;
     }
 
-    const withDemo = projects.filter(p => p.demo_url);
-    document.getElementById('demo-list').innerHTML = withDemo.length
-      ? withDemo.map(p => `
-          <div class="card">
-            <div style="font-size:16px;font-weight:600;margin-bottom:4px">${p.name}</div>
-            ${p.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">${p.description}</p>` : ''}
-            ${renderDemoEmbed(p.demo_url)}
-          </div>`).join('')
-      : `<div class="empty">
-          <div style="margin-bottom:8px">暂无系统演示</div>
-          <div style="font-size:12px;color:var(--text-muted)">在后台项目管理中填写 Demo URL（支持 B 站链接、图片、自部署地址）</div>
-        </div>`;
+    // Load data in parallel
+    const [{ projects }, { sections: worksSections }] = await Promise.all([
+      api.getProjects(),
+      api.getWorksSections().catch(() => ({ sections: [] })),
+    ]);
 
-    // 自定义分区：加载 works 专属板块
-    try {
-      const { sections } = await api.getWorksSections();
-      const worksSections = sections;
-      if (worksSections.length) {
-        const parts = await Promise.all(worksSections.map(async sec => {
-          const { items } = await api.getGardenItems(sec.id, '', '');
-          const itemsHtml = items.length
-            ? items.map(item => `
-                <div class="card" style="margin-bottom:10px">
-                  <div style="font-weight:600;margin-bottom:4px">${item.title}</div>
-                  ${item.summary ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${item.summary}</p>` : ''}
-                  ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:12px">🔗 查看链接</a>` : ''}
-                  ${item.embed_url ? renderDemoEmbed(item.embed_url) : ''}
-                </div>`).join('')
-            : '<div class="empty">暂无内容</div>';
-          return `<h3 style="font-size:15px;font-weight:600;margin-bottom:12px">${sec.name}</h3>${itemsHtml}`;
-        }));
-        document.getElementById('custom-sections').innerHTML = parts.join('<hr style="border:none;border-top:1px solid var(--border);margin:24px 0">');
-      } else {
-        document.getElementById('custom-sections').innerHTML =
-          `<div class="empty">
-            <div style="margin-bottom:8px">暂无自定义板块</div>
-            <div style="font-size:12px;color:var(--text-muted)">在后台作品集管理中添加自定义板块</div>
-          </div>`;
+    // Build tab definitions: fixed tabs + dynamic custom tabs
+    const tabs = [
+      { id: 'projects', label: '项目' },
+      { id: 'demos',    label: '系统演示' },
+      ...worksSections.map(s => ({ id: `custom-${s.id}`, label: s.name, sectionId: s.id })),
+    ];
+
+    // Render tabs
+    document.getElementById('works-tabs').innerHTML = tabs.map((t, i) =>
+      `<button class="tab-btn ${i === 0 ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`
+    ).join('');
+
+    // Render panels (initially empty except first)
+    document.getElementById('works-panels').innerHTML = tabs.map((t, i) =>
+      `<div class="tab-panel ${i === 0 ? 'active' : ''}" id="tab-${t.id}">
+        <div class="loading">加载中...</div>
+      </div>`
+    ).join('');
+
+    // Tab switching with lazy load
+    const loaded = new Set();
+    async function activateTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.tab === tabId));
+      document.querySelectorAll('.tab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === 'tab-' + tabId));
+      if (!loaded.has(tabId)) {
+        loaded.add(tabId);
+        await renderTabContent(tabId);
       }
-    } catch {
-      document.getElementById('custom-sections').innerHTML = '<div class="empty">加载失败</div>';
     }
+
+    document.getElementById('works-tabs').addEventListener('click', e => {
+      const btn = e.target.closest('.tab-btn');
+      if (btn) activateTab(btn.dataset.tab);
+    });
+
+    async function renderTabContent(tabId) {
+      const panel = document.getElementById('tab-' + tabId);
+
+      if (tabId === 'projects') {
+        panel.innerHTML = projects.length
+          ? `<div class="grid-3">${projects.map(p => `
+              <div class="card">
+                <div style="font-size:16px;font-weight:600;margin-bottom:6px">${p.name}</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;min-height:36px">${p.description || ''}</div>
+                <div style="margin-bottom:10px;display:flex;gap:4px;flex-wrap:wrap">${renderBadges(p.tech_stack)}</div>
+                <div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted)">
+                  ${p.stars ? `<span>⭐ ${p.stars}</span>` : ''}
+                  ${p.repo_url ? `<a href="${p.repo_url}" target="_blank">GitHub →</a>` : ''}
+                  ${p.demo_url ? `<a href="${p.demo_url}" target="_blank">Demo →</a>` : ''}
+                </div>
+              </div>`).join('')}</div>`
+          : '<div class="empty">暂无项目</div>';
+        return;
+      }
+
+      if (tabId === 'demos') {
+        const withDemo = projects.filter(p => p.demo_url);
+        panel.innerHTML = withDemo.length
+          ? `<div style="display:flex;flex-direction:column;gap:24px">${withDemo.map(p => `
+              <div class="card">
+                <div style="font-size:16px;font-weight:600;margin-bottom:4px">${p.name}</div>
+                ${p.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">${p.description}</p>` : ''}
+                ${renderDemoEmbed(p.demo_url)}
+              </div>`).join('')}</div>`
+          : `<div class="empty">
+              <div style="margin-bottom:8px">暂无系统演示</div>
+              <div style="font-size:12px;color:var(--text-muted)">在后台项目管理中填写 Demo URL（支持 B 站链接、图片、自部署地址）</div>
+            </div>`;
+        return;
+      }
+
+      // Custom section tab
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab?.sectionId) {
+        try {
+          const { items } = await api.getGardenItems(tab.sectionId, '', '');
+          panel.innerHTML = items.length
+            ? `<div style="display:flex;flex-direction:column;gap:16px">${items.map(item => `
+                <div class="card">
+                  <div style="font-size:15px;font-weight:600;margin-bottom:6px">${item.title}</div>
+                  ${item.summary ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${item.summary}</p>` : ''}
+                  ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:13px">🔗 查看链接</a>` : ''}
+                  ${item.embed_url ? `<div style="margin-top:12px">${renderDemoEmbed(item.embed_url)}</div>` : ''}
+                </div>`).join('')}</div>`
+            : '<div class="empty">暂无内容</div>';
+        } catch {
+          panel.innerHTML = '<div class="empty">加载失败</div>';
+        }
+      }
+    }
+
+    // Load first tab immediately
+    loaded.add('projects');
+    renderTabContent('projects');
   </script>
 </body>
 </html>
