@@ -48,7 +48,24 @@ func (h *PostHandler) AdminGetBySlug(c *gin.Context) {
 		return
 	}
 	views := h.stats.PostViewCount(post.ID)
-	c.JSON(http.StatusOK, gin.H{"post": post, "views": views, "reading_minutes": service.ReadingMinutes(post.WordCount)})
+	// Content has json:"-" to hide from public API; expose it here for the CMS editor
+	c.JSON(http.StatusOK, gin.H{
+		"post": gin.H{
+			"id":           post.ID,
+			"title":        post.Title,
+			"slug":         post.Slug,
+			"content":      post.Content,
+			"summary":      post.Summary,
+			"word_count":   post.WordCount,
+			"tags":         post.Tags,
+			"is_pinned":    post.IsPinned,
+			"is_published": post.IsPublished,
+			"created_at":   post.CreatedAt,
+			"updated_at":   post.UpdatedAt,
+		},
+		"views":           views,
+		"reading_minutes": service.ReadingMinutes(post.WordCount),
+	})
 }
 
 func (h *PostHandler) AdminList(c *gin.Context) {
