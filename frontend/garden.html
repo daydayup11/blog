@@ -29,7 +29,8 @@
 
     const { sections } = await api.getGardenSections();
     let activeSection = sections[0];
-    let activeType = '';  // '' = 全部
+    let activeType = '';
+    let activeTag  = '';
 
     const TYPE_LABEL = { book: '书籍', video: '视频', article: '文章', website: '网站', account: '账号' };
     const TYPE_COLOR = { book: '#60a5fa', video: '#f87171', article: '#fbbf24', website: '#4ade80', account: '#a78bfa' };
@@ -42,18 +43,18 @@
       `).join('');
     }
 
-    function renderTypeFilter() {
-      return `
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px" id="type-filter">
-          ${TYPE_FILTERS.map(t => `
-            <button class="page-btn ${activeType === t ? 'active' : ''}" data-type="${t}">${TYPE_FILTER_LABEL[t]}</button>
-          `).join('')}
-        </div>`;
+    // 从当前板块所有条目聚合出标签列表（不受 activeType/activeTag 过滤影响）
+    async function getAllTags(sectionId) {
+      const { items } = await api.getGardenItems(sectionId, '', '');
+      const seen = new Set();
+      items.forEach(i => JSON.parse(i.tags || '[]').forEach(t => seen.add(t)));
+      return [...seen].sort();
     }
 
     function renderItemCard(item) {
       const color = TYPE_COLOR[item.type] || '#94a3b8';
       const label = TYPE_LABEL[item.type] || item.type;
+      const tags  = JSON.parse(item.tags || '[]');
       return `
         <div class="card">
           <div style="display:flex;align-items:flex-start;gap:12px">
@@ -61,6 +62,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-weight:600;margin-bottom:4px">${item.title}</div>
               ${item.summary ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${item.summary}</p>` : ''}
+              ${tags.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">${tags.map(t => `<span class="tag" style="cursor:pointer" data-tag="${t}">${t}</span>`).join('')}</div>` : ''}
               <div style="font-size:12px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap">
                 ${item.source ? `<span>${item.source}</span>` : ''}
                 ${item.url ? `<a href="${item.url}" target="_blank">🔗 原文链接</a>` : ''}
@@ -71,8 +73,20 @@
         </div>`;
     }
 
+    async function refreshItems() {
+      const { items } = await api.getGardenItems(activeSection.id, activeType, activeTag);
+      // update type filter buttons
+      document.querySelectorAll('#type-filter .page-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.type === activeType));
+      // update tag filter buttons
+      document.querySelectorAll('#tag-filter .tag-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.tag === activeTag));
+      document.getElementById('item-list').innerHTML =
+        items.length ? items.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>';
+    }
+
     async function renderSection(section) {
-      const { items } = await api.getGardenItems(section.id, activeType);
+      const { items } = await api.getGardenItems(section.id, '', '');
 
       if (section.slug === 'social') {
         document.getElementById('section-content').innerHTML = `
@@ -91,25 +105,54 @@
         return;
       }
 
+      const allTags = await getAllTags(section.id);
+      const filteredItems = activeType || activeTag
+        ? (await api.getGardenItems(section.id, activeType, activeTag)).items
+        : items;
+
       document.getElementById('section-content').innerHTML = `
-        ${renderTypeFilter()}
+        <!-- 类型 Tab -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="type-filter">
+          ${TYPE_FILTERS.map(t => `
+            <button class="page-btn ${activeType === t ? 'active' : ''}" data-type="${t}">${TYPE_FILTER_LABEL[t]}</button>
+          `).join('')}
+        </div>
+        <!-- 标签筛选行 -->
+        ${allTags.length ? `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)" id="tag-filter">
+          ${allTags.map(t => `
+            <button class="tag-btn tag ${activeTag === t ? 'active' : ''}"
+              style="cursor:pointer;border:1px solid ${activeTag === t ? 'var(--accent)' : 'transparent'};${activeTag === t ? 'color:var(--accent)' : ''}"
+              data-tag="${t}">${t}</button>
+          `).join('')}
+        </div>` : '<div id="tag-filter"></div>'}
+        <!-- 条目列表 -->
         <div style="display:flex;flex-direction:column;gap:12px" id="item-list">
-          ${items.length ? items.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>'}
+          ${filteredItems.length ? filteredItems.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>'}
         </div>`;
 
-      document.getElementById('type-filter').addEventListener('click', onTypeFilter);
-
-    async function onTypeFilter(e) {
+      // 事件委托：类型 Tab
+      document.getElementById('type-filter').addEventListener('click', async e => {
         if (!e.target.matches('[data-type]')) return;
         activeType = e.target.dataset.type;
-        const { items: filtered } = await api.getGardenItems(activeSection.id, activeType);
-        // re-render only the filter buttons and list, keep listener on stable container
-        document.querySelectorAll('#type-filter .page-btn').forEach(b => {
-          b.classList.toggle('active', b.dataset.type === activeType);
-        });
-        document.getElementById('item-list').innerHTML =
-          filtered.length ? filtered.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>';
-      }
+        await refreshItems();
+      });
+
+      // 事件委托：标签筛选（支持点击同一标签取消）
+      document.getElementById('tag-filter').addEventListener('click', async e => {
+        const btn = e.target.closest('.tag-btn');
+        if (!btn) return;
+        activeTag = activeTag === btn.dataset.tag ? '' : btn.dataset.tag;
+        await refreshItems();
+      });
+
+      // 卡片内标签点击（直接筛选该标签）
+      document.getElementById('item-list').addEventListener('click', async e => {
+        const tagEl = e.target.closest('[data-tag]');
+        if (!tagEl || tagEl.closest('#tag-filter')) return;
+        activeTag = activeTag === tagEl.dataset.tag ? '' : tagEl.dataset.tag;
+        await refreshItems();
+      });
     }
 
     renderSectionNav();
@@ -119,6 +162,7 @@
       if (!e.target.matches('[data-id]')) return;
       activeSection = sections.find(s => s.id === +e.target.dataset.id);
       activeType = '';
+      activeTag  = '';
       renderSectionNav();
       renderSection(activeSection);
     });

@@ -129,7 +129,8 @@ Tab 切换三个子板块：
 - **子板块导航**：各知识主题板块 + 我在哪里（由 `garden_sections` 表驱动，支持增删和排序，Phase 2 实现可视化拖拽编排，Phase 1 后台手动排序）
 - **知识主题板块**（如"计算机知识"、"金融知识"、"心理学知识"，可自由增删）：
   - 板块内有 4 种内容类型 Tab：**全部 / 书籍 / 视频 / 文章 / 网站**
-  - 卡片含：标题、来源、摘要、原文链接、可选 iframe 嵌入预览
+  - 类型 Tab 下方有**标签筛选行**（从该板块所有条目的 tags 动态聚合），支持多选，与类型 Tab 组合过滤
+  - 卡片含：标题、来源、摘要、标签、原文链接、可选 iframe 嵌入预览
   - 类型用彩色徽章区分：书籍🔵 / 视频🔴 / 文章🟡 / 网站🟢
 - **我在哪里子板块**（特殊板块，slug = `social`）：第三方账号入口卡片，含平台图标、昵称、链接、二维码（规划中状态可标灰）
 - 感想文章复用博客系统，在 garden 标签下聚合显示
@@ -256,6 +257,7 @@ CREATE TABLE garden_items (
   url         TEXT,
   source      TEXT,                   -- 来源名称
   summary     TEXT,
+  tags        TEXT DEFAULT '[]',      -- JSON 数组，自定义标签（如"操作系统"、"底层原理"）
   embed_url   TEXT,                   -- iframe 嵌入 URL
   sort_order  INTEGER DEFAULT 0,      -- Phase 2 拖拽排序预留
   created_at  DATETIME

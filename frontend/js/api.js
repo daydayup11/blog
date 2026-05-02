@@ -20,7 +20,7 @@ export const api = {
   getColumn:   (slug)        => request(`/columns/${slug}`),
   getProjects: ()            => request('/projects'),
   getGardenSections: ()                    => request('/garden/sections'),
-  getGardenItems:    (sectionId, type = '') => request(`/garden/items?section_id=${sectionId}${type ? '&type=' + type : ''}`),
+  getGardenItems:    (sectionId, type = '', tag = '') => request(`/garden/items?section_id=${sectionId}${type ? '&type=' + type : ''}${tag ? '&tag=' + encodeURIComponent(tag) : ''}`),
   trackPage: (path, referrer = '') =>
     request('/track/page', { method: 'POST', body: JSON.stringify({ path, referrer }) }),
   trackPost: (id) =>
