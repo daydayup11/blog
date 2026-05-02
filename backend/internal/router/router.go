@@ -68,6 +68,7 @@ func Setup(h Handlers, jwtSecret, uploadDir, frontendDir string) *gin.Engine {
 	admin.Use(middleware.JWTAuth(jwtSecret))
 
 	admin.GET("/stats", h.Stats.AdminStats)
+	admin.GET("/posts", h.Post.AdminList)
 	admin.POST("/posts", h.Post.AdminCreate)
 	admin.PUT("/posts/:id", h.Post.AdminUpdate)
 	admin.DELETE("/posts/:id", h.Post.AdminDelete)

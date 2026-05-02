@@ -28,6 +28,7 @@ export const api = {
   login: (username, password) =>
     request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   adminStats: (days = 7) => request(`/admin/stats?days=${days}`),
+  adminListPosts: (page = 1) => request(`/admin/posts?page=${page}`),
   adminCreatePost:  (data) => request('/admin/posts', { method: 'POST', body: JSON.stringify(data) }),
   adminUpdatePost:  (id, data) => request(`/admin/posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   adminDeletePost:  (id) => request(`/admin/posts/${id}`, { method: 'DELETE' }),

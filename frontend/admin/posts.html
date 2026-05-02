@@ -63,7 +63,7 @@
     async function loadPosts() {
       let allPosts = [], page = 1;
       while (true) {
-        const { posts, total } = await api.getPosts({ page });
+        const { posts, total } = await api.adminListPosts(page);
         allPosts = allPosts.concat(posts);
         if (allPosts.length >= total || !posts.length) break;
         page++;

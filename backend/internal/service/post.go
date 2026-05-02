@@ -62,6 +62,18 @@ func (s *PostService) List(page, pageSize int, tag, query string) ([]model.Post,
 	return posts, total, err
 }
 
+// ListAll returns all posts regardless of published status (admin only).
+func (s *PostService) ListAll(page, pageSize int) ([]model.Post, int64, error) {
+	var posts []model.Post
+	var total int64
+	s.db.Model(&model.Post{}).Count(&total)
+	offset := (page - 1) * pageSize
+	err := s.db.Order("created_at DESC").
+		Offset(offset).Limit(pageSize).
+		Find(&posts).Error
+	return posts, total, err
+}
+
 func (s *PostService) Update(id uint, title, content, summary string, tags []string) (*model.Post, error) {
 	tagsJSON, _ := json.Marshal(tags)
 	updates := map[string]interface{}{

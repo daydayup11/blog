@@ -41,6 +41,16 @@ func (h *PostHandler) Tags(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"tags": h.posts.AllTags()})
 }
 
+func (h *PostHandler) AdminList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	posts, total, err := h.posts.ListAll(page, 50)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"posts": posts, "total": total, "page": page})
+}
+
 func (h *PostHandler) AdminCreate(c *gin.Context) {
 	var req struct {
 		Title   string   `json:"title" binding:"required"`
