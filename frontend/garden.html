@@ -13,10 +13,24 @@
 </head>
 <body>
   <div id="nav-root"></div>
-  <main class="page">
-    <div style="display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap" id="section-nav"></div>
-    <div id="section-content"><div class="loading">加载中...</div></div>
-  </main>
+  <style>
+    @media (max-width: 700px) {
+      #garden-layout { grid-template-columns: 1fr !important; }
+      #section-nav { flex-direction: row !important; flex-wrap: wrap; }
+      #section-nav button { width: auto !important; }
+    }
+  </style>
+  <div id="garden-layout" style="max-width:1100px;margin:0 auto;padding:32px 24px;display:grid;grid-template-columns:200px 1fr;gap:32px;align-items:start">
+    <!-- 左侧板块导航 -->
+    <aside>
+      <div class="section-title" style="margin-bottom:12px">知识板块</div>
+      <div id="section-nav" style="display:flex;flex-direction:column;gap:4px"></div>
+    </aside>
+    <!-- 右侧内容区 -->
+    <main>
+      <div id="section-content"><div class="loading">加载中...</div></div>
+    </main>
+  </div>
 
   <script type="module">
     import { renderNav, getApi } from '/js/components.js';
@@ -39,7 +53,13 @@
 
     function renderSectionNav() {
       document.getElementById('section-nav').innerHTML = sections.map(s => `
-        <button class="page-btn ${s.id === activeSection.id ? 'active' : ''}" data-id="${s.id}">${s.name}</button>
+        <button data-id="${s.id}" style="
+          width:100%;text-align:left;padding:9px 14px;border-radius:6px;
+          border:none;cursor:pointer;font-size:14px;
+          background:${s.id === activeSection.id ? 'var(--accent-dim)' : 'transparent'};
+          color:${s.id === activeSection.id ? 'var(--accent)' : 'var(--text-secondary)'};
+          font-weight:${s.id === activeSection.id ? '600' : '400'};
+        ">${s.name}</button>
       `).join('');
     }
 
@@ -76,7 +96,7 @@
     async function refreshItems() {
       const { items } = await api.getGardenItems(activeSection.id, activeType, activeTag);
       // update type filter buttons
-      document.querySelectorAll('#type-filter .page-btn').forEach(b =>
+      document.querySelectorAll('#type-filter .tab-btn').forEach(b =>
         b.classList.toggle('active', b.dataset.type === activeType));
       // update tag filter buttons
       document.querySelectorAll('#tag-filter .tag-btn').forEach(b =>
@@ -111,21 +131,29 @@
         : items;
 
       document.getElementById('section-content').innerHTML = `
+        <!-- 板块标题 -->
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">${section.name}</h2>
+
         <!-- 类型 Tab -->
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="type-filter">
+        <div class="tabs" style="margin-bottom:0" id="type-filter">
           ${TYPE_FILTERS.map(t => `
-            <button class="page-btn ${activeType === t ? 'active' : ''}" data-type="${t}">${TYPE_FILTER_LABEL[t]}</button>
+            <button class="tab-btn ${activeType === t ? 'active' : ''}" data-type="${t}">${TYPE_FILTER_LABEL[t]}</button>
           `).join('')}
         </div>
-        <!-- 标签筛选行 -->
+
+        <!-- 标签筛选区 -->
         ${allTags.length ? `
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)" id="tag-filter">
-          ${allTags.map(t => `
-            <button class="tag-btn tag ${activeTag === t ? 'active' : ''}"
-              style="cursor:pointer;border:1px solid ${activeTag === t ? 'var(--accent)' : 'transparent'};${activeTag === t ? 'color:var(--accent)' : ''}"
-              data-tag="${t}">${t}</button>
-          `).join('')}
-        </div>` : '<div id="tag-filter"></div>'}
+        <div style="padding:12px 0 16px;margin-bottom:20px;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-right:10px">标签</span>
+          <span id="tag-filter" style="display:inline-flex;gap:6px;flex-wrap:wrap">
+            ${allTags.map(t => `
+              <button class="tag-btn tag ${activeTag === t ? 'active' : ''}"
+                style="cursor:pointer;border:1px solid ${activeTag === t ? 'var(--accent)' : 'transparent'};${activeTag === t ? 'color:var(--accent);' : ''}"
+                data-tag="${t}">${t}</button>
+            `).join('')}
+          </span>
+        </div>` : '<span id="tag-filter"></span>'}
+
         <!-- 条目列表 -->
         <div style="display:flex;flex-direction:column;gap:12px" id="item-list">
           ${filteredItems.length ? filteredItems.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>'}
@@ -133,7 +161,7 @@
 
       // 事件委托：类型 Tab
       document.getElementById('type-filter').addEventListener('click', async e => {
-        if (!e.target.matches('[data-type]')) return;
+        if (!e.target.matches('.tab-btn')) return;
         activeType = e.target.dataset.type;
         await refreshItems();
       });
