@@ -134,7 +134,7 @@
     };
 
     window.togglePublish = async (id, current) => {
-      await api.adminPublishColumn(id, { published: !current });
+      await api.adminPublishColumn(id, !current);
       loadColumns();
     };
 
