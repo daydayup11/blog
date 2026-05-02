@@ -1,6 +1,6 @@
 module github.com/daiyutong/blog
 
-go 1.26.2
+go 1.22
 
 require (
 	github.com/gin-gonic/gin v1.10.0
