@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章 | 戴宇彤</title>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-theme">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+  <div id="nav-root"></div>
+
+  <div style="max-width:1100px;margin:0 auto;padding:40px 24px;display:grid;grid-template-columns:1fr 200px;gap:40px" id="layout">
+    <!-- Main -->
+    <article>
+      <div id="post-header"><div class="loading">加载中...</div></div>
+      <div class="article-body" id="post-body"></div>
+      <div id="post-nav" style="display:flex;justify-content:space-between;margin-top:40px;padding-top:20px;border-top:1px solid var(--border)"></div>
+    </article>
+    <!-- TOC sidebar -->
+    <aside>
+      <div class="toc" id="toc">
+        <div class="section-title" style="margin-bottom:12px">目录</div>
+        <div id="toc-links"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module">
+    import { renderNav, renderTags, renderPostMeta, getApi } from '/js/components.js';
+    import '/js/theme.js';
+
+    document.getElementById('nav-root').innerHTML = renderNav('blog');
+
+    // Switch hljs theme when light mode active
+    const observer = new MutationObserver(() => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.getElementById('hljs-theme').href = dark
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+        : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    const slug = new URLSearchParams(location.search).get('slug');
+    if (!slug) { document.getElementById('post-header').innerHTML = '<div class="empty">文章不存在</div>'; }
+
+    const api = await getApi();
+    const { post, views, reading_minutes } = await api.getPost(slug);
+
+    document.title = `${post.title} | 戴宇彤`;
+    document.getElementById('post-header').innerHTML = `
+      <h1 style="font-size:28px;font-weight:700;margin-bottom:16px;line-height:1.3">${post.title}</h1>
+      ${renderPostMeta({ ...post, views, reading_minutes })}
+      <div style="margin-top:12px">${renderTags(post.tags)}</div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:24px 0">`;
+
+    document.getElementById('post-body').innerHTML = post.content_html;
+    hljs.highlightAll();
+    api.trackPost(post.id);
+    api.trackPage(location.pathname, document.referrer);
+
+    // Build TOC from h2/h3
+    const headings = document.querySelectorAll('.article-body h2, .article-body h3');
+    if (headings.length) {
+      document.getElementById('toc-links').innerHTML = [...headings].map(h => `
+        <a href="#${h.id}" class="${h.tagName === 'H3' ? 'toc-h3' : ''}">${h.textContent}</a>
+      `).join('');
+    } else {
+      document.getElementById('toc').style.display = 'none';
+      document.getElementById('layout').style.gridTemplateColumns = '1fr';
+    }
+
+    // TOC scroll highlight
+    const tocLinks = document.querySelectorAll('.toc a');
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('active'));
+          const a = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+          if (a) a.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    headings.forEach(h => io.observe(h));
+  </script>
+</body>
+</html>
