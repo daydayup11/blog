@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>专栏管理 | 后台</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .action-btn { padding:3px 10px; border-radius:4px; font-size:12px; cursor:pointer; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); }
+    .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .action-btn.danger:hover { border-color:#f87171; color:#f87171; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px; width:480px; max-width:90vw; }
+    .form-field { margin-bottom:14px; }
+    .form-field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:5px; }
+    .form-field input, .form-field textarea {
+      width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px;
+      background:var(--bg-secondary); color:var(--text-primary); font-size:13px; outline:none;
+    }
+    .form-field input:focus { border-color:var(--accent); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; padding:8px 12px; color:var(--text-muted); font-weight:500; border-bottom:1px solid var(--border); }
+    td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page">
+    <div style="display:flex;align-items:center;margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700">专栏管理</h2>
+      <button onclick="openModal()" style="margin-left:auto;padding:7px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">+ 新建专栏</button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>专栏名</th>
+            <th>Slug</th>
+            <th style="width:80px">状态</th>
+            <th style="width:120px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="col-tbody"><tr><td colspan="4" class="loading">加载中...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:18px" id="modal-title">新建专栏</h3>
+      <input type="hidden" id="edit-id">
+      <div class="form-field"><label>专栏名 *</label><input id="f-name" placeholder="Go 从入门到实践"></div>
+      <div class="form-field"><label>Slug *</label><input id="f-slug" placeholder="go-series"></div>
+      <div class="form-field"><label>简介</label><textarea id="f-desc" rows="2" placeholder="专栏简介"></textarea></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+        <button class="action-btn" onclick="closeModal()">取消</button>
+        <button onclick="saveColumn()" style="padding:6px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('columns');
+
+    async function loadColumns() {
+      const { columns } = await api.getColumns();
+      const tbody = document.getElementById('col-tbody');
+      if (!columns.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">暂无专栏</td></tr>'; return; }
+      tbody.innerHTML = columns.map(c => `
+        <tr>
+          <td>${c.name}</td>
+          <td style="color:var(--text-muted);font-family:monospace">${c.slug}</td>
+          <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:${c.is_published ? 'var(--accent-dim)' : 'var(--bg-hover)'};color:${c.is_published ? 'var(--accent)' : 'var(--text-muted)'}">${c.is_published ? '已发布' : '草稿'}</span></td>
+          <td style="display:flex;gap:6px">
+            <button class="action-btn" onclick="editCol(${c.id},'${c.name}','${c.slug}','${(c.description||'').replace(/'/g,"\\'")}')">编辑</button>
+            <button class="action-btn danger" onclick="deleteCol(${c.id})">删除</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    window.openModal = () => {
+      document.getElementById('edit-id').value = '';
+      document.getElementById('modal-title').textContent = '新建专栏';
+      document.getElementById('f-name').value = '';
+      document.getElementById('f-slug').value = '';
+      document.getElementById('f-desc').value = '';
+      document.getElementById('modal').classList.add('show');
+    };
+    window.closeModal = () => document.getElementById('modal').classList.remove('show');
+
+    window.editCol = (id, name, slug, desc) => {
+      document.getElementById('edit-id').value = id;
+      document.getElementById('modal-title').textContent = '编辑专栏';
+      document.getElementById('f-name').value = name;
+      document.getElementById('f-slug').value = slug;
+      document.getElementById('f-desc').value = desc;
+      document.getElementById('modal').classList.add('show');
+    };
+
+    window.saveColumn = async () => {
+      const id   = document.getElementById('edit-id').value;
+      const name = document.getElementById('f-name').value.trim();
+      const slug = document.getElementById('f-slug').value.trim();
+      const desc = document.getElementById('f-desc').value.trim();
+      if (!name || !slug) return;
+      if (id) { await api.adminUpdateColumn(+id, { name, description: desc }); }
+      else    { await api.adminCreateColumn({ name, slug, description: desc }); }
+      closeModal();
+      loadColumns();
+    };
+
+    window.deleteCol = async (id) => {
+      if (!confirm('确认删除该专栏？')) return;
+      await api.adminDeleteColumn(id);
+      loadColumns();
+    };
+
+    document.getElementById('f-name').addEventListener('input', e => {
+      if (!document.getElementById('edit-id').value) {
+        document.getElementById('f-slug').value = e.target.value
+          .toLowerCase().replace(/\s+/g,'-').replace(/[^\w-]/g,'').slice(0,40);
+      }
+    });
+
+    loadColumns();
+  </script>
+</body>
+</html>
