@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章管理 | 后台</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .action-btn {
+      padding:3px 10px; border-radius:4px; font-size:12px; cursor:pointer;
+      border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary);
+    }
+    .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .action-btn.danger:hover { border-color:#f87171; color:#f87171; }
+    .action-btn.active-btn { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; padding:8px 12px; color:var(--text-muted); font-weight:500; border-bottom:1px solid var(--border); }
+    td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page">
+    <div style="display:flex;align-items:center;margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700">文章管理</h2>
+      <a href="/admin/editor.html" style="margin-left:auto">
+        <button style="padding:7px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">
+          + 新建文章
+        </button>
+      </a>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th style="width:60px">字数</th>
+            <th style="width:80px">状态</th>
+            <th style="width:60px">置顶</th>
+            <th style="width:140px">时间</th>
+            <th style="width:180px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="post-tbody">
+          <tr><td colspan="6" class="loading">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('posts');
+
+    async function loadPosts() {
+      let allPosts = [], page = 1;
+      while (true) {
+        const { posts, total } = await api.getPosts({ page });
+        allPosts = allPosts.concat(posts);
+        if (allPosts.length >= total || !posts.length) break;
+        page++;
+      }
+      renderTable(allPosts);
+    }
+
+    function renderTable(posts) {
+      const tbody = document.getElementById('post-tbody');
+      if (!posts.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无文章</td></tr>';
+        return;
+      }
+      tbody.innerHTML = posts.map(p => `
+        <tr data-id="${p.id}">
+          <td>
+            <a href="/post.html?slug=${p.slug}" target="_blank" style="color:var(--text-primary)">${p.title}</a>
+          </td>
+          <td style="color:var(--text-muted)">${p.word_count}</td>
+          <td>
+            <span style="font-size:11px;padding:2px 7px;border-radius:4px;
+              background:${p.is_published ? 'var(--accent-dim)' : 'var(--bg-hover)'};
+              color:${p.is_published ? 'var(--accent)' : 'var(--text-muted)'}">
+              ${p.is_published ? '已发布' : '草稿'}
+            </span>
+          </td>
+          <td>${p.is_pinned ? '<span style="color:var(--accent)">📌</span>' : '—'}</td>
+          <td style="color:var(--text-muted)">${new Date(p.created_at).toLocaleDateString('zh-CN')}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="action-btn" onclick="editPost('${p.slug}')">编辑</button>
+            <button class="action-btn ${p.is_pinned ? 'active-btn' : ''}" onclick="togglePin(${p.id}, ${p.is_pinned})">
+              ${p.is_pinned ? '取消置顶' : '置顶'}
+            </button>
+            <button class="action-btn ${p.is_published ? 'active-btn' : ''}" onclick="togglePublish(${p.id}, ${p.is_published})">
+              ${p.is_published ? '下线' : '发布'}
+            </button>
+            <button class="action-btn danger" onclick="deletePost(${p.id})">删除</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    window.editPost = (slug) => { location.href = `/admin/editor.html?slug=${slug}`; };
+
+    window.togglePin = async (id, current) => {
+      await api.adminPinPost(id, !current);
+      loadPosts();
+    };
+
+    window.togglePublish = async (id, current) => {
+      await api.adminPublishPost(id, !current);
+      loadPosts();
+    };
+
+    window.deletePost = async (id) => {
+      if (!confirm('确认删除这篇文章？此操作不可恢复。')) return;
+      await api.adminDeletePost(id);
+      loadPosts();
+    };
+
+    loadPosts();
+  </script>
+</body>
+</html>
