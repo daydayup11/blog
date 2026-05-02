@@ -1,6 +1,10 @@
 package router
 
 import (
+	"net/http"
+	"path/filepath"
+	"strings"
+
 	"github.com/daiyutong/blog/internal/handler"
 	"github.com/daiyutong/blog/internal/middleware"
 	"github.com/gin-gonic/gin"
@@ -16,11 +20,35 @@ type Handlers struct {
 	Upload  *handler.UploadHandler
 }
 
-func Setup(h Handlers, jwtSecret, uploadDir string) *gin.Engine {
+func Setup(h Handlers, jwtSecret, uploadDir, frontendDir string) *gin.Engine {
 	r := gin.Default()
 	r.Use(middleware.CORS())
 
 	r.Static("/uploads", uploadDir)
+
+	// Serve frontend static files
+	r.Static("/css", filepath.Join(frontendDir, "css"))
+	r.Static("/js",  filepath.Join(frontendDir, "js"))
+	r.Static("/admin", filepath.Join(frontendDir, "admin"))
+	// Serve root HTML pages
+	for _, page := range []string{"index", "blog", "post", "column", "works", "garden"} {
+		p := page // capture
+		r.GET("/"+p+".html", func(c *gin.Context) {
+			c.File(filepath.Join(frontendDir, p+".html"))
+		})
+	}
+	r.GET("/", func(c *gin.Context) {
+		c.File(filepath.Join(frontendDir, "index.html"))
+	})
+	// Fallback: serve index.html for unknown paths (not /api, not /uploads)
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/uploads/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.File(filepath.Join(frontendDir, "index.html"))
+	})
 
 	api := r.Group("/api")
 

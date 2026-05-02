@@ -32,7 +32,7 @@ func main() {
 		Upload:  handler.NewUploadHandler(uploadDir),
 	}
 
-	r := router.Setup(h, cfg.JWTSecret, uploadDir)
+	r := router.Setup(h, cfg.JWTSecret, uploadDir, cfg.FrontendDir)
 	log.Printf("server starting on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server failed: %v", err)
