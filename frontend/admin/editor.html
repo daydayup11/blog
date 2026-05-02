@@ -60,12 +60,18 @@
         <input id="f-title" placeholder="文章标题">
       </div>
       <div class="meta-field">
-        <label>Slug *（URL路径）</label>
-        <input id="f-slug" placeholder="my-post-slug">
+        <label>Slug *
+          <span style="font-weight:normal;font-size:11px;color:var(--text-muted)">（文章 URL 的唯一标识，只含字母/数字/短横线，自动生成）</span>
+        </label>
+        <input id="f-slug" placeholder="my-post-slug，已有则换一个">
+        <div id="slug-hint" style="font-size:11px;margin-top:3px;display:none"></div>
       </div>
       <div class="meta-field">
-        <label>标签（逗号分隔）</label>
+        <label>标签
+          <span style="font-weight:normal;font-size:11px;color:var(--text-muted)">（逗号分隔，或点击下方已有标签）</span>
+        </label>
         <input id="f-tags" placeholder="Go, 并发, 实践">
+        <div id="existing-tags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px"></div>
       </div>
     </div>
     <div class="meta-field" style="margin-bottom:16px">
@@ -133,6 +139,26 @@
           .toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 60);
       }
     });
+
+    // Load existing tags for quick selection
+    try {
+      const { tags } = await api.getTags();
+      const container = document.getElementById('existing-tags');
+      if (tags && tags.length) {
+        container.innerHTML = tags.map(t =>
+          `<span class="tag" style="cursor:pointer;user-select:none" data-tag="${t}" title="点击添加">${t}</span>`
+        ).join('');
+        container.addEventListener('click', e => {
+          const tag = e.target.dataset.tag;
+          if (!tag) return;
+          const input = document.getElementById('f-tags');
+          const current = input.value.split(',').map(s => s.trim()).filter(Boolean);
+          if (!current.includes(tag)) {
+            input.value = [...current, tag].join(', ');
+          }
+        });
+      }
+    } catch { /* ignore if tags fail to load */ }
 
     function loadMarked(cb) {
       if (window.marked) { cb(); return; }
@@ -207,6 +233,8 @@
       saveBtn.disabled = publishBtn.disabled = true;
       document.getElementById('status-msg').textContent = '';
 
+      const slugHint = document.getElementById('slug-hint');
+      slugHint.style.display = 'none';
       try {
         if (postId) {
           await api.adminUpdatePost(postId, { title, content, summary, tags });
@@ -223,6 +251,11 @@
           document.getElementById('status-msg').textContent = '✓ 已保存草稿 ' + new Date().toLocaleTimeString('zh-CN');
         }
       } catch (err) {
+        if (err.message.includes('500') && !postId) {
+          slugHint.style.color = '#f87171';
+          slugHint.textContent = 'Slug "' + slug + '" 已被使用，请在上方修改为其他值';
+          slugHint.style.display = 'block';
+        }
         document.getElementById('status-msg').textContent = '失败: ' + err.message;
       } finally {
         saveBtn.disabled = publishBtn.disabled = false;
