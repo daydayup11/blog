@@ -116,7 +116,7 @@
     if (editSlug) {
       document.getElementById('page-title').textContent = '编辑文章';
       try {
-        const { post } = await api.getPost(editSlug);
+        const { post } = await api.adminGetPost(editSlug);
         postId = post.id;
         document.getElementById('f-title').value = post.title;
         document.getElementById('f-slug').value = post.slug;

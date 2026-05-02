@@ -44,6 +44,15 @@ func (s *PostService) GetBySlug(slug string) (*model.Post, error) {
 	return &post, nil
 }
 
+// GetBySlugAdmin returns a post regardless of published status (for CMS editor).
+func (s *PostService) GetBySlugAdmin(slug string) (*model.Post, error) {
+	var post model.Post
+	if err := s.db.Where("slug = ?", slug).First(&post).Error; err != nil {
+		return nil, err
+	}
+	return &post, nil
+}
+
 func (s *PostService) List(page, pageSize int, tag, query string) ([]model.Post, int64, error) {
 	var posts []model.Post
 	var total int64

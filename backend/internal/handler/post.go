@@ -41,6 +41,16 @@ func (h *PostHandler) Tags(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"tags": h.posts.AllTags()})
 }
 
+func (h *PostHandler) AdminGetBySlug(c *gin.Context) {
+	post, err := h.posts.GetBySlugAdmin(c.Param("slug"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	views := h.stats.PostViewCount(post.ID)
+	c.JSON(http.StatusOK, gin.H{"post": post, "views": views, "reading_minutes": service.ReadingMinutes(post.WordCount)})
+}
+
 func (h *PostHandler) AdminList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	posts, total, err := h.posts.ListAll(page, 50)
