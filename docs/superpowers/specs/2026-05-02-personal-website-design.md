@@ -39,8 +39,9 @@ Phase 2（可视化页面构建器）单独立项，本文档不涉及。
 blog/
 ├── frontend/
 │   ├── index.html          # 主页
-│   ├── blog.html           # 博客列表
+│   ├── blog.html           # 博客列表（文章+专栏两视图）
 │   ├── post.html           # 单篇文章
+│   ├── column.html         # 专栏详情页
 │   ├── works.html          # 作品集
 │   ├── garden.html         # 知识花园
 │   ├── admin/              # CMS 后台（受 JWT 保护）
@@ -91,17 +92,31 @@ blog/
 6. **联系方式**：GitHub / 邮件 / 其他社交入口
 
 ### blog.html — 博客列表
+页面分两个视图 Tab 切换：**文章** / **专栏**
+
+**文章视图：**
 - 置顶文章区（绿色边框，📌 标识，置顶文章排在列表最前）
 - 标签筛选栏（全部 + 各 tag）
 - 关键词搜索框（前端过滤 or 调 API）
-- 文章卡片列表：标题、摘要、日期、👁 浏览人次、📖 预计阅读时长、字数
+- 文章卡片列表：标题、摘要、日期、👁 浏览人次、📖 预计阅读时长、字数、所属专栏（若有）
 - 分页（每页 10 条）
+
+**专栏视图：**
+- 专栏卡片列表：封面图、专栏名、简介、文章数、最近更新时间
+- 点击专栏卡片 → 进入 `column.html`（专栏详情页）
+
+### column.html — 专栏详情页
+- 专栏封面 + 名称 + 介绍
+- 有序文章列表（第1篇→第N篇），含每篇的标题、字数、浏览人次
+- 当前阅读进度提示（若已读过某篇，可用 localStorage 标记）
+- 上一篇 / 下一篇在专栏内导航（`post.html` 内也有）
 
 ### post.html — 单篇文章
 - 文章元信息：标题、日期、标签、**字数 / 浏览人次 / 预计阅读时间**
 - 右侧悬浮目录（从 H2/H3 自动生成，高亮当前章节）
 - Markdown 正文（marked.js 渲染 + highlight.js 代码高亮）
-- 上一篇 / 下一篇导航
+- 上一篇 / 下一篇导航（全局时间序；若属于专栏，优先显示专栏内上下篇）
+- 所属专栏入口（若有），点击可跳转至 `column.html`
 - 页面加载时自动向 `POST /api/track/post/:id` 上报浏览
 
 ### works.html — 作品集
@@ -128,9 +143,11 @@ Tab 切换三个子板块：
 
 ### 公开接口
 ```
-GET  /api/posts              # 文章列表（?page=&tag=&q=&pinned=）
-GET  /api/posts/:slug        # 单篇文章详情（含渲染 HTML）
+GET  /api/posts              # 文章列表（?page=&tag=&q=&pinned=&column_id=）
+GET  /api/posts/:slug        # 单篇文章详情（含渲染 HTML，含所属专栏上下篇）
 GET  /api/tags               # 标签列表
+GET  /api/columns            # 专栏列表
+GET  /api/columns/:slug      # 专栏详情（含有序文章列表）
 GET  /api/projects           # 项目列表
 GET  /api/garden/sections    # 知识花园子板块列表
 GET  /api/garden/items       # 收藏列表（?section_id=&type=）
@@ -147,6 +164,10 @@ POST   /api/admin/posts          # 新建文章
 PUT    /api/admin/posts/:id      # 编辑文章
 DELETE /api/admin/posts/:id      # 删除文章
 PUT    /api/admin/posts/:id/pin  # 切换置顶
+POST   /api/admin/columns          # 新建专栏
+PUT    /api/admin/columns/:id      # 编辑专栏
+DELETE /api/admin/columns/:id      # 删除专栏
+PUT    /api/admin/columns/:id/posts # 更新专栏文章列表及顺序
 POST   /api/admin/projects       # 新建项目
 PUT    /api/admin/projects/:id   # 编辑项目
 DELETE /api/admin/projects/:id   # 删除项目
@@ -177,6 +198,26 @@ CREATE TABLE posts (
   is_published BOOLEAN DEFAULT FALSE,
   created_at  DATETIME,
   updated_at  DATETIME
+);
+
+-- 专栏
+CREATE TABLE columns (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,
+  slug        TEXT NOT NULL UNIQUE,
+  cover_url   TEXT,
+  description TEXT,
+  is_published BOOLEAN DEFAULT FALSE,
+  created_at  DATETIME,
+  updated_at  DATETIME
+);
+
+-- 专栏文章关联（有序）
+CREATE TABLE column_posts (
+  column_id   INTEGER REFERENCES columns(id),
+  post_id     INTEGER REFERENCES posts(id),
+  sort_order  INTEGER NOT NULL,           -- 文章在专栏内的顺序
+  PRIMARY KEY (column_id, post_id)
 );
 
 -- 项目
