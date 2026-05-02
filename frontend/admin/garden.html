@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>花园管理 | 后台</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .action-btn { padding:3px 10px; border-radius:4px; font-size:12px; cursor:pointer; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); }
+    .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .action-btn.danger:hover { border-color:#f87171; color:#f87171; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px; width:500px; max-width:90vw; max-height:90vh; overflow-y:auto; }
+    .form-field { margin-bottom:12px; }
+    .form-field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px; }
+    .form-field input, .form-field select, .form-field textarea {
+      width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px;
+      background:var(--bg-secondary); color:var(--text-primary); font-size:13px; outline:none;
+    }
+    .form-field input:focus, .form-field select:focus { border-color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <div style="max-width:1100px;margin:0 auto;padding:32px 24px;display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:start">
+
+    <aside>
+      <div style="display:flex;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin-bottom:0">板块</div>
+        <button onclick="openSectionModal()" style="margin-left:auto;font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--text-secondary)">+ 新增</button>
+      </div>
+      <div id="section-list" style="display:flex;flex-direction:column;gap:4px"></div>
+    </aside>
+
+    <main>
+      <div style="display:flex;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:16px;font-weight:700" id="section-title">选择板块</h2>
+        <button onclick="openItemModal()" id="add-item-btn" style="display:none;margin-left:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:12px;font-weight:600;cursor:pointer">+ 添加条目</button>
+      </div>
+      <div id="item-list"><div class="empty">← 选择左侧板块查看条目</div></div>
+    </main>
+  </div>
+
+  <!-- Section Modal -->
+  <div class="modal-overlay" id="section-modal">
+    <div class="modal">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:18px" id="section-modal-title">新建板块</h3>
+      <input type="hidden" id="sec-edit-id">
+      <div class="form-field"><label>板块名 *</label><input id="sec-name" placeholder="计算机知识"></div>
+      <div class="form-field"><label>Slug *</label><input id="sec-slug" placeholder="cs"></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="sec-visible" checked style="width:auto">
+        <label for="sec-visible" style="font-size:13px;color:var(--text-primary);cursor:pointer">显示</label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="action-btn" onclick="document.getElementById('section-modal').classList.remove('show')">取消</button>
+        <button onclick="saveSection()" style="padding:6px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item Modal -->
+  <div class="modal-overlay" id="item-modal">
+    <div class="modal">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:18px" id="item-modal-title">添加条目</h3>
+      <input type="hidden" id="item-edit-id">
+      <div class="grid-2">
+        <div class="form-field">
+          <label>类型 *</label>
+          <select id="item-type">
+            <option value="article">文章</option>
+            <option value="video">视频</option>
+            <option value="book">书籍</option>
+            <option value="website">网站</option>
+            <option value="account">账号（我在哪里）</option>
+          </select>
+        </div>
+        <div class="form-field"><label>来源</label><input id="item-source" placeholder="Go Blog / YouTube"></div>
+      </div>
+      <div class="form-field"><label>标题 *</label><input id="item-title" placeholder="条目标题"></div>
+      <div class="form-field"><label>链接</label><input id="item-url" placeholder="https://..."></div>
+      <div class="form-field"><label>摘要</label><textarea id="item-summary" rows="2" placeholder="简短描述"></textarea></div>
+      <div class="form-field"><label>标签（逗号分隔）</label><input id="item-tags" placeholder="Go, 操作系统"></div>
+      <div class="form-field">
+        <label>嵌入链接（iframe/PDF）
+          <label style="float:right;font-size:11px;color:var(--accent);cursor:pointer;font-weight:normal">
+            <input type="file" accept=".pdf" id="pdf-upload-item" style="display:none">
+            ⬆ 上传 PDF
+          </label>
+        </label>
+        <input id="item-embed" placeholder="https://... 或上传 PDF 后自动填入">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="action-btn" onclick="document.getElementById('item-modal').classList.remove('show')">取消</button>
+        <button onclick="saveItem()" style="padding:6px 16px;border:none;border-radius:6px;background:var(--accent);color:#000;font-size:13px;font-weight:600;cursor:pointer">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('garden');
+
+    let sections = [];
+    let activeSectionId = null;
+
+    async function loadSections() {
+      const { sections: s } = await api.getGardenSections();
+      sections = s;
+      document.getElementById('section-list').innerHTML = s.map(sec => `
+        <div style="display:flex;align-items:center;gap:4px">
+          <button data-id="${sec.id}" style="
+            flex:1;text-align:left;padding:8px 12px;border-radius:6px;border:none;cursor:pointer;font-size:13px;
+            background:${sec.id === activeSectionId ? 'var(--accent-dim)' : 'transparent'};
+            color:${sec.id === activeSectionId ? 'var(--accent)' : 'var(--text-secondary)'};
+          ">${sec.name}</button>
+          <button class="action-btn danger" onclick="deleteSection(${sec.id})" style="padding:2px 6px;font-size:11px">×</button>
+        </div>`).join('');
+
+      // Re-attach click listener
+      const list = document.getElementById('section-list');
+      list.onclick = e => {
+        const btn = e.target.closest('[data-id]');
+        if (btn) selectSection(+btn.dataset.id);
+      };
+    }
+
+    function selectSection(id) {
+      activeSectionId = id;
+      const sec = sections.find(s => s.id === id);
+      document.getElementById('section-title').textContent = sec?.name || '';
+      document.getElementById('add-item-btn').style.display = 'block';
+      loadSections();
+      loadItems(id);
+    }
+
+    async function loadItems(sectionId) {
+      const { items } = await api.getGardenItems(sectionId, '', '');
+      const TYPE_LABEL = { article:'文章', video:'视频', book:'书籍', website:'网站', account:'账号' };
+      const TYPE_COLOR = { article:'#fbbf24', video:'#f87171', book:'#60a5fa', website:'#4ade80', account:'#a78bfa' };
+      document.getElementById('item-list').innerHTML = items.length
+        ? items.map(item => {
+            const color = TYPE_COLOR[item.type] || '#94a3b8';
+            const tags = JSON.parse(item.tags || '[]');
+            return `
+              <div class="card" style="margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+                <span style="background:${color}20;color:${color};font-size:11px;padding:2px 8px;border-radius:4px;white-space:nowrap;margin-top:2px;flex-shrink:0">${TYPE_LABEL[item.type]||item.type}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:600;margin-bottom:2px">${item.title}</div>
+                  ${item.summary ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">${item.summary}</div>` : ''}
+                  ${tags.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                  <button class="action-btn" onclick='editItem(${JSON.stringify(item)})'>编辑</button>
+                  <button class="action-btn danger" onclick="deleteItem(${item.id})">删除</button>
+                </div>
+              </div>`;
+          }).join('')
+        : '<div class="empty">暂无条目，点击右上角添加</div>';
+    }
+
+    // Section CRUD
+    window.openSectionModal = () => {
+      document.getElementById('sec-edit-id').value = '';
+      document.getElementById('section-modal-title').textContent = '新建板块';
+      document.getElementById('sec-name').value = '';
+      document.getElementById('sec-slug').value = '';
+      document.getElementById('sec-visible').checked = true;
+      document.getElementById('section-modal').classList.add('show');
+    };
+
+    window.saveSection = async () => {
+      const id   = document.getElementById('sec-edit-id').value;
+      const name = document.getElementById('sec-name').value.trim();
+      const slug = document.getElementById('sec-slug').value.trim();
+      const vis  = document.getElementById('sec-visible').checked;
+      if (!name || !slug) return;
+      if (id) { await api.adminUpdateSection(+id, { name, sort_order: 0, is_visible: vis }); }
+      else    { await api.adminCreateSection({ name, slug }); }
+      document.getElementById('section-modal').classList.remove('show');
+      loadSections();
+    };
+
+    window.deleteSection = async (id) => {
+      if (!confirm('删除板块会同时删除其下所有条目，确认？')) return;
+      await api.adminDeleteSection(id);
+      if (activeSectionId === id) {
+        activeSectionId = null;
+        document.getElementById('item-list').innerHTML = '<div class="empty">← 选择左侧板块查看条目</div>';
+        document.getElementById('add-item-btn').style.display = 'none';
+        document.getElementById('section-title').textContent = '选择板块';
+      }
+      loadSections();
+    };
+
+    // PDF upload for item embed_url
+    document.getElementById('pdf-upload-item').addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const embedInput = document.getElementById('item-embed');
+      embedInput.placeholder = '上传中...';
+      try {
+        const { url } = await api.adminUpload(file);
+        embedInput.value = url;
+        embedInput.placeholder = 'https://... 或上传 PDF 后自动填入';
+      } catch {
+        embedInput.placeholder = '上传失败，请重试';
+      }
+      e.target.value = '';
+    });
+
+    // Item CRUD
+    window.openItemModal = () => {
+      document.getElementById('item-edit-id').value = '';
+      document.getElementById('item-modal-title').textContent = '添加条目';
+      ['item-title','item-url','item-source','item-summary','item-tags','item-embed'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('item-type').value = 'article';
+      document.getElementById('item-modal').classList.add('show');
+    };
+
+    window.editItem = (item) => {
+      document.getElementById('item-edit-id').value = item.id;
+      document.getElementById('item-modal-title').textContent = '编辑条目';
+      document.getElementById('item-type').value = item.type;
+      document.getElementById('item-title').value = item.title;
+      document.getElementById('item-url').value = item.url || '';
+      document.getElementById('item-source').value = item.source || '';
+      document.getElementById('item-summary').value = item.summary || '';
+      document.getElementById('item-tags').value = JSON.parse(item.tags || '[]').join(', ');
+      document.getElementById('item-embed').value = item.embed_url || '';
+      document.getElementById('item-modal').classList.add('show');
+    };
+
+    window.saveItem = async () => {
+      const id    = document.getElementById('item-edit-id').value;
+      const tags  = document.getElementById('item-tags').value
+        .split(',').map(t=>t.trim()).filter(Boolean);
+      const data  = {
+        section_id: activeSectionId,
+        type:       document.getElementById('item-type').value,
+        title:      document.getElementById('item-title').value.trim(),
+        url:        document.getElementById('item-url').value.trim(),
+        source:     document.getElementById('item-source').value.trim(),
+        summary:    document.getElementById('item-summary').value.trim(),
+        tags:       JSON.stringify(tags),
+        embed_url:  document.getElementById('item-embed').value.trim(),
+      };
+      if (!data.title) return;
+      if (id) { await api.adminUpdateItem(+id, data); }
+      else    { await api.adminCreateItem(data); }
+      document.getElementById('item-modal').classList.remove('show');
+      loadItems(activeSectionId);
+    };
+
+    window.deleteItem = async (id) => {
+      if (!confirm('确认删除该条目？')) return;
+      await api.adminDeleteItem(id);
+      loadItems(activeSectionId);
+    };
+
+    loadSections();
+  </script>
+</body>
+</html>
