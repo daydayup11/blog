@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>戴宇彤 | 个人主页</title>
+  <script>
+  (function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div id="nav-root"></div>
+
+  <main class="page">
+    <!-- Hero -->
+    <section class="hero">
+      <h1 class="hero-name">Hi, I'm <span>戴宇彤</span> 👋</h1>
+      <p class="hero-sub">Full-stack Developer · Go · Java · Python · Docker</p>
+      <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge badge-go">Go</span>
+        <span class="badge badge-java">Java</span>
+        <span class="badge badge-python">Python</span>
+        <span class="badge badge-docker">Docker</span>
+      </div>
+      <div class="hero-links">
+        <a class="hero-link" href="https://github.com/daiyutong" target="_blank">⭐ GitHub</a>
+        <a class="hero-link" href="mailto:your@email.com">✉️ 邮件联系</a>
+      </div>
+    </section>
+
+    <!-- Experience Timeline -->
+    <section style="margin-bottom:40px">
+      <div class="section-title">经历</div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div>
+            <div style="font-weight:600">某公司 · 后端工程师</div>
+            <div style="color:var(--text-muted);font-size:13px">2024 — 至今</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot muted"></div>
+          <div>
+            <div style="font-weight:600">某大学 · 计算机科学与技术</div>
+            <div style="color:var(--text-muted);font-size:13px">2020 — 2024</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured Projects -->
+    <section style="margin-bottom:40px">
+      <div class="section-title">精选项目</div>
+      <div class="grid-3" id="featured-projects"><div class="loading">加载中...</div></div>
+    </section>
+
+    <!-- Latest Posts -->
+    <section style="margin-bottom:40px">
+      <div class="section-title">最新文章</div>
+      <div id="latest-posts"><div class="loading">加载中...</div></div>
+    </section>
+
+    <!-- Contact -->
+    <section style="margin-bottom:40px">
+      <div class="section-title">联系我</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a class="hero-link" href="https://github.com/daiyutong" target="_blank">⭐ GitHub</a>
+        <a class="hero-link" href="mailto:your@email.com">✉️ Email</a>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { renderNav, renderBadges, getApi } from '/js/components.js';
+    import '/js/theme.js';
+
+    document.getElementById('nav-root').innerHTML = renderNav('index');
+
+    const api = await getApi();
+    api.trackPage(location.pathname, document.referrer);
+
+    // Featured projects
+    const { projects } = await api.getProjects();
+    const featured = projects.filter(p => p.is_featured).slice(0, 3);
+    document.getElementById('featured-projects').innerHTML = featured.length
+      ? featured.map(p => `
+          <div class="card">
+            <div style="font-weight:600;margin-bottom:6px">${p.name}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${p.description}</div>
+            <div style="margin-bottom:10px">${renderBadges(p.tech_stack)}</div>
+            <div style="font-size:12px;color:var(--text-muted);display:flex;gap:12px">
+              ${p.stars ? `<span>⭐ ${p.stars}</span>` : ''}
+              ${p.repo_url ? `<a href="${p.repo_url}" target="_blank">GitHub →</a>` : ''}
+            </div>
+          </div>`).join('')
+      : '<div class="empty">暂无精选项目</div>';
+
+    // Latest posts
+    const { posts } = await api.getPosts({ page: 1 });
+    document.getElementById('latest-posts').innerHTML = posts.slice(0, 5).map(p => `
+      <a href="/post.html?slug=${p.slug}" style="display:block;padding:14px 0;border-bottom:1px solid var(--border);text-decoration:none">
+        <div style="font-size:15px;color:var(--text-primary);margin-bottom:4px">${p.title}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${new Date(p.created_at).toLocaleDateString('zh-CN')} · ${p.word_count} 字</div>
+      </a>`).join('');
+  </script>
+</body>
+</html>

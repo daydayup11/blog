@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>专栏 | 戴宇彤</title>
+  <script>
+  (function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page">
+    <a href="/blog.html" style="font-size:13px;color:var(--text-muted);display:inline-block;margin-bottom:20px">← 返回博客</a>
+    <div id="column-header"><div class="loading">加载中...</div></div>
+    <div id="post-list" style="margin-top:24px"></div>
+  </main>
+
+  <script type="module">
+    import { renderNav, getApi } from '/js/components.js';
+    import '/js/theme.js';
+
+    document.getElementById('nav-root').innerHTML = renderNav('blog');
+
+    const slug = new URLSearchParams(location.search).get('slug');
+    const api = await getApi();
+    const { column, posts } = await api.getColumn(slug);
+
+    document.title = `${column.name} | 戴宇彤`;
+    document.getElementById('column-header').innerHTML = `
+      <h1 style="font-size:26px;font-weight:700;margin-bottom:10px">${column.name}</h1>
+      <p style="color:var(--text-secondary);font-size:15px;margin-bottom:16px">${column.description || ''}</p>
+      <div style="font-size:13px;color:var(--text-muted)">共 ${posts.length} 篇</div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">`;
+
+    document.getElementById('post-list').innerHTML = posts.map((p, i) => `
+      <a href="/post.html?slug=${p.slug}&column=${slug}" style="text-decoration:none">
+        <div class="card" style="margin-bottom:10px;display:flex;align-items:center;gap:16px;cursor:pointer">
+          <span style="font-size:22px;font-weight:700;color:var(--accent);min-width:32px;text-align:center;font-family:monospace">${String(i+1).padStart(2,'0')}</span>
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--text-primary)">${p.title}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:3px">${p.word_count || 0} 字 · 约 ${Math.max(1, Math.ceil((p.word_count||0)/300))} 分钟</div>
+          </div>
+        </div>
+      </a>`).join('');
+  </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作品集 | 戴宇彤</title>
+  <script>
+  (function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page-wide">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="projects">项目</button>
+      <button class="tab-btn" data-tab="demos">系统演示</button>
+      <button class="tab-btn" data-tab="custom">自定义</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-projects">
+      <div class="grid-3" id="project-list"><div class="loading">加载中...</div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-demos">
+      <div id="demo-list" style="display:flex;flex-direction:column;gap:24px"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-custom">
+      <div class="empty">自定义内容（后台配置）</div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { renderNav, renderBadges, getApi } from '/js/components.js';
+    import '/js/theme.js';
+
+    document.getElementById('nav-root').innerHTML = renderNav('works');
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    const api = await getApi();
+    api.trackPage(location.pathname, document.referrer);
+
+    const { projects } = await api.getProjects();
+
+    document.getElementById('project-list').innerHTML = projects.length
+      ? projects.map(p => `
+          <div class="card">
+            <div style="font-size:16px;font-weight:600;margin-bottom:6px">${p.name}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;min-height:36px">${p.description || ''}</div>
+            <div style="margin-bottom:10px;display:flex;gap:4px;flex-wrap:wrap">${renderBadges(p.tech_stack)}</div>
+            <div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted)">
+              ${p.stars ? `<span>⭐ ${p.stars}</span>` : ''}
+              ${p.repo_url ? `<a href="${p.repo_url}" target="_blank">GitHub →</a>` : ''}
+              ${p.demo_url ? `<a href="${p.demo_url}" target="_blank">Demo →</a>` : ''}
+            </div>
+          </div>`).join('')
+      : '<div class="empty">暂无项目</div>';
+
+    const withDemo = projects.filter(p => p.demo_url);
+    document.getElementById('demo-list').innerHTML = withDemo.length
+      ? withDemo.map(p => `
+          <div class="card">
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">${p.name}</div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">${p.description || ''}</p>
+            <iframe src="${p.demo_url}" style="width:100%;height:480px;border:1px solid var(--border);border-radius:6px" loading="lazy"></iframe>
+          </div>`).join('')
+      : '<div class="empty">暂无系统演示</div>';
+  </script>
+</body>
+</html>

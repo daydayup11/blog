@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>博客 | 戴宇彤</title>
+  <script>
+  (function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+  <div id="nav-root"></div>
+
+  <main class="page">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="posts">文章</button>
+      <button class="tab-btn" data-tab="columns">专栏</button>
+    </div>
+
+    <!-- Posts Tab -->
+    <div class="tab-panel active" id="tab-posts">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+        <div id="tag-filter" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <input id="search" type="text" placeholder="🔍 搜索文章..."
+          style="margin-left:auto;padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;outline:none">
+      </div>
+      <div id="pinned-area"></div>
+      <div id="post-list"><div class="loading">加载中...</div></div>
+      <div id="pagination" class="pagination"></div>
+    </div>
+
+    <!-- Columns Tab -->
+    <div class="tab-panel" id="tab-columns">
+      <div class="grid-2" id="column-list"><div class="loading">加载中...</div></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { renderNav, renderTags, getApi } from '/js/components.js';
+    import '/js/theme.js';
+
+    document.getElementById('nav-root').innerHTML = renderNav('blog');
+
+    const api = await getApi();
+    api.trackPage(location.pathname, document.referrer);
+
+    let currentTag = '', currentPage = 1, allPosts = [];
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'columns') loadColumns();
+      });
+    });
+
+    // Tags
+    const { tags } = await api.getTags();
+    const tagFilter = document.getElementById('tag-filter');
+    tagFilter.innerHTML = ['全部', ...tags].map(t =>
+      `<button class="page-btn ${t === '全部' ? 'active' : ''}" data-tag="${t === '全部' ? '' : t}">${t}</button>`
+    ).join('');
+    tagFilter.addEventListener('click', e => {
+      if (!e.target.matches('.page-btn')) return;
+      document.querySelectorAll('#tag-filter .page-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentTag = e.target.dataset.tag;
+      currentPage = 1;
+      loadPosts();
+    });
+
+    // Search
+    let searchTimer;
+    document.getElementById('search').addEventListener('input', e => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { loadPosts(e.target.value); }, 300);
+    });
+
+    function renderPostCard(p, pinned = false) {
+      const tags = JSON.parse(p.tags || '[]');
+      const date = new Date(p.created_at).toLocaleDateString('zh-CN');
+      const mins = Math.max(1, Math.ceil((p.word_count || 0) / 300));
+      return `
+        <div class="${pinned ? 'pinned-card' : 'card'}" style="margin-bottom:12px">
+          ${pinned ? '<span class="pinned-badge">📌 置顶</span>' : ''}
+          <a href="/post.html?slug=${p.slug}" style="font-size:16px;font-weight:600;color:var(--text-primary)">${p.title}</a>
+          <p style="color:var(--text-secondary);font-size:14px;margin:8px 0">${p.summary || ''}</p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+          <div class="post-meta">
+            <span>📅 ${date}</span>
+            <span>📝 ${p.word_count || 0} 字</span>
+            <span>👁 ${p.views || 0} 次浏览</span>
+            <span>📖 约 ${mins} 分钟</span>
+          </div>
+        </div>`;
+    }
+
+    async function loadPosts(q = '') {
+      const { posts, total } = await api.getPosts({ page: currentPage, tag: currentTag, q });
+      allPosts = posts;
+      const pinned = posts.filter(p => p.is_pinned);
+      const normal = posts.filter(p => !p.is_pinned);
+      document.getElementById('pinned-area').innerHTML = pinned.map(p => renderPostCard(p, true)).join('');
+      document.getElementById('post-list').innerHTML = normal.length
+        ? normal.map(p => renderPostCard(p)).join('')
+        : '<div class="empty">暂无文章</div>';
+
+      const totalPages = Math.ceil(total / 10);
+      document.getElementById('pagination').innerHTML = Array.from({ length: totalPages }, (_, i) =>
+        `<button class="page-btn ${i + 1 === currentPage ? 'active' : ''}" data-page="${i + 1}">${i + 1}</button>`
+      ).join('');
+    }
+
+    document.getElementById('pagination').addEventListener('click', e => {
+      if (!e.target.matches('[data-page]')) return;
+      currentPage = +e.target.dataset.page;
+      loadPosts();
+    });
+
+    async function loadColumns() {
+      const { columns } = await api.getColumns();
+      document.getElementById('column-list').innerHTML = columns.length
+        ? columns.map(c => `
+            <a href="/column.html?slug=${c.slug}" style="text-decoration:none">
+              <div class="card" style="cursor:pointer">
+                <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text-primary)">${c.name}</div>
+                <div style="font-size:13px;color:var(--text-secondary)">${c.description || ''}</div>
+              </div>
+            </a>`).join('')
+        : '<div class="empty">暂无专栏</div>';
+    }
+
+    loadPosts();
+  </script>
+</body>
+</html>

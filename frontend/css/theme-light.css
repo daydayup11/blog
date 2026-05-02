@@ -1,0 +1,20 @@
+:root[data-theme="light"] {
+  --bg-primary:    #ffffff;
+  --bg-secondary:  #f8fafc;
+  --bg-card:       #ffffff;
+  --bg-hover:      #f1f5f9;
+  --text-primary:  #0f172a;
+  --text-secondary:#475569;
+  --text-muted:    #94a3b8;
+  --accent:        #2563eb;
+  --accent-dim:    #eff6ff;
+  --accent-border: #bfdbfe;
+  --border:        #e2e8f0;
+  --border-hover:  #cbd5e1;
+  --tag-bg:        #f1f5f9;
+  --tag-text:      #475569;
+  --pinned-bg:     #f0fdf4;
+  --pinned-border: #86efac;
+  --code-bg:       #f8fafc;
+  --nav-bg:        #ffffff;
+}
