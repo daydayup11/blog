@@ -2,7 +2,9 @@ const BASE = '/api';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('admin-token');
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const headers = options.body instanceof FormData
+    ? { ...options.headers }
+    : { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(BASE + path, { ...options, headers });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);

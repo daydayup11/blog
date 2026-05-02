@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>戴宇彤 | 个人主页</title>
+  <script>
+  (function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
   <link rel="stylesheet" href="/css/theme-dark.css">
   <link rel="stylesheet" href="/css/theme-light.css">
   <link rel="stylesheet" href="/css/common.css">
@@ -59,6 +62,15 @@
     <section style="margin-bottom:40px">
       <div class="section-title">最新文章</div>
       <div id="latest-posts"><div class="loading">加载中...</div></div>
+    </section>
+
+    <!-- Contact -->
+    <section style="margin-bottom:40px">
+      <div class="section-title">联系我</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a class="hero-link" href="https://github.com/daiyutong" target="_blank">⭐ GitHub</a>
+        <a class="hero-link" href="mailto:your@email.com">✉️ Email</a>
+      </div>
     </section>
   </main>
 

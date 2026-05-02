@@ -23,3 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('theme-btn');
   if (btn) btn.addEventListener('click', toggleTheme);
 });
+
+// 仅当用户没有手动设置过主题时，跟随系统偏好变化
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!localStorage.getItem(THEME_KEY)) {
+    applyTheme(e.matches ? 'dark' : 'light');
+  }
+});

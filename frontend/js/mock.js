@@ -1,12 +1,14 @@
 export const api = {
-  getPosts: async ({ page = 1 } = {}) => ({
-    posts: [
+  getPosts: async ({ page = 1, tag = '', q = '' } = {}) => {
+    let posts = [
       { id: 1, title: '置顶：Go 并发模式实践', slug: 'go-concurrency', summary: '深入理解 goroutine 和 channel 的设计模式，避免常见陷阱。', tags: '["Go","并发"]', is_pinned: true, word_count: 2400, created_at: '2026-04-10T10:00:00Z' },
       { id: 2, title: 'Docker 最佳实践总结', slug: 'docker-best-practices', summary: '从 Dockerfile 优化到多阶段构建，系统整理 Docker 使用心得。', tags: '["Docker","运维"]', is_pinned: false, word_count: 1800, created_at: '2026-04-01T10:00:00Z' },
       { id: 3, title: 'Java 虚拟线程初探', slug: 'java-virtual-threads', summary: 'Project Loom 带来的虚拟线程，彻底改变 Java 并发编程方式。', tags: '["Java"]', is_pinned: false, word_count: 1200, created_at: '2026-03-20T10:00:00Z' },
-    ],
-    total: 3, page,
-  }),
+    ];
+    if (tag) posts = posts.filter(p => JSON.parse(p.tags).includes(tag));
+    if (q)   posts = posts.filter(p => p.title.includes(q) || (p.summary && p.summary.includes(q)));
+    return { posts, total: posts.length, page };
+  },
   getPost: async (slug) => ({
     post: { id: 1, title: 'Go 并发模式实践', slug, content: '', content_html: '<h2 id="intro">简介</h2><p>本文介绍 Go 并发模式...</p><h2 id="goroutine">Goroutine</h2><p>goroutine 是 Go 的轻量级线程...</p><h3 id="channel">Channel 用法</h3><p>channel 是 goroutine 间通信的桥梁。</p><pre><code class="language-go">ch := make(chan int)\ngo func() { ch &lt;- 42 }()\nfmt.Println(&lt;-ch)</code></pre>', tags: '["Go","并发"]', word_count: 2400, created_at: '2026-04-10T10:00:00Z' },
     views: 1234,
