@@ -38,19 +38,37 @@ export const api = {
   }),
   getGardenSections: async () => ({
     sections: [
-      { id: 1, slug: 'bookmarks', name: '收藏', sort_order: 0 },
-      { id: 2, slug: 'social', name: '我在哪里', sort_order: 1 },
+      { id: 1, slug: 'cs', name: '计算机知识', sort_order: 0 },
+      { id: 2, slug: 'finance', name: '金融知识', sort_order: 1 },
+      { id: 3, slug: 'psychology', name: '心理学知识', sort_order: 2 },
+      { id: 4, slug: 'social', name: '我在哪里', sort_order: 3 },
     ],
   }),
-  getGardenItems: async (sectionId) => ({
-    items: sectionId === 1 ? [
-      { id: 1, section_id: 1, type: 'article', title: 'Go 调度器原理深度解析', source: 'Go Blog', url: 'https://example.com', summary: '深入分析 GMP 模型和调度器工作原理。', embed_url: '' },
-      { id: 2, section_id: 1, type: 'video',   title: '如何做系统设计', source: 'YouTube', url: 'https://example.com', summary: '系统设计面试思路全解析。', embed_url: '' },
-      { id: 3, section_id: 1, type: 'book',    title: '《程序员的自我修养》', source: '豆瓣', url: 'https://example.com', summary: '链接、装载与库，深入理解程序运行原理。', embed_url: '' },
-    ] : [
-      { id: 4, section_id: 2, type: 'account', title: 'GitHub', source: 'github.com/daiyutong', url: 'https://github.com', summary: '', embed_url: '' },
-    ],
-  }),
+  getGardenItems: async (sectionId, type = '') => {
+    const all = {
+      1: [
+        { id: 1,  section_id: 1, type: 'article', title: 'Go 调度器原理深度解析', source: 'Go Blog', url: 'https://example.com', summary: '深入分析 GMP 模型和调度器工作原理。', embed_url: '' },
+        { id: 2,  section_id: 1, type: 'video',   title: '如何做系统设计', source: 'YouTube', url: 'https://example.com', summary: '系统设计面试思路全解析。', embed_url: '' },
+        { id: 3,  section_id: 1, type: 'book',    title: '《程序员的自我修养》', source: '豆瓣', url: 'https://example.com', summary: '链接、装载与库，深入理解程序运行原理。', embed_url: '' },
+        { id: 4,  section_id: 1, type: 'website', title: 'roadmap.sh', source: 'roadmap.sh', url: 'https://roadmap.sh', summary: '开发者学习路径地图，覆盖前后端、DevOps 等方向。', embed_url: '' },
+        { id: 5,  section_id: 1, type: 'book',    title: '《深入理解计算机系统》', source: '豆瓣', url: 'https://example.com', summary: 'CSAPP，计算机系统必读经典。', embed_url: '' },
+      ],
+      2: [
+        { id: 6,  section_id: 2, type: 'book',    title: '《穷爸爸富爸爸》', source: '豆瓣', url: 'https://example.com', summary: '财务自由思维入门，改变金钱观的经典读物。', embed_url: '' },
+        { id: 7,  section_id: 2, type: 'article', title: '指数基金投资入门', source: '雪球', url: 'https://example.com', summary: '定投指数基金的基本逻辑和操作方法。', embed_url: '' },
+        { id: 8,  section_id: 2, type: 'video',   title: '巴菲特股东大会精选', source: 'YouTube', url: 'https://example.com', summary: '价值投资理念精华片段合集。', embed_url: '' },
+      ],
+      3: [
+        { id: 9,  section_id: 3, type: 'book',    title: '《被讨厌的勇气》', source: '豆瓣', url: 'https://example.com', summary: '阿德勒心理学对话体入门，关于如何获得幸福的哲学。', embed_url: '' },
+        { id: 10, section_id: 3, type: 'article', title: '认知偏见手册', source: 'Wikipedia', url: 'https://example.com', summary: '180+ 种认知偏见的系统整理，提升元认知能力。', embed_url: '' },
+      ],
+      4: [
+        { id: 11, section_id: 4, type: 'account', title: 'GitHub', source: 'github.com/daiyutong', url: 'https://github.com', summary: '', embed_url: '' },
+      ],
+    };
+    const items = all[sectionId] || [];
+    return { items: type ? items.filter(i => i.type === type) : items };
+  },
   trackPage: async () => null,
   trackPost: async () => null,
 };

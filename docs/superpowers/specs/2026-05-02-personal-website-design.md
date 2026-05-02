@@ -126,9 +126,12 @@ Tab 切换三个子板块：
 3. **自定义分区**：后台可配置的自由内容区
 
 ### garden.html — 知识花园
-- **子板块导航**：收藏 / 我在哪里 / 自定义（由 `garden_sections` 表驱动，支持增删和排序，Phase 2 实现拖拽，Phase 1 后台手动排序）
-- **收藏子板块**：外链卡片，按类型打标签（文章 / 视频 / 书籍 / 其他），卡片含标题、来源、摘要、原文链接、可选 iframe 预览
-- **我在哪里子板块**：第三方账号入口卡片，含平台图标、昵称、链接、二维码（规划中状态可标灰）
+- **子板块导航**：各知识主题板块 + 我在哪里（由 `garden_sections` 表驱动，支持增删和排序，Phase 2 实现可视化拖拽编排，Phase 1 后台手动排序）
+- **知识主题板块**（如"计算机知识"、"金融知识"、"心理学知识"，可自由增删）：
+  - 板块内有 4 种内容类型 Tab：**全部 / 书籍 / 视频 / 文章 / 网站**
+  - 卡片含：标题、来源、摘要、原文链接、可选 iframe 嵌入预览
+  - 类型用彩色徽章区分：书籍🔵 / 视频🔴 / 文章🟡 / 网站🟢
+- **我在哪里子板块**（特殊板块，slug = `social`）：第三方账号入口卡片，含平台图标、昵称、链接、二维码（规划中状态可标灰）
 - 感想文章复用博客系统，在 garden 标签下聚合显示
 
 ### admin/ — CMS 后台
@@ -248,7 +251,7 @@ CREATE TABLE garden_sections (
 CREATE TABLE garden_items (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   section_id  INTEGER REFERENCES garden_sections(id),
-  type        TEXT NOT NULL,          -- article / video / book / account / other
+  type        TEXT NOT NULL,          -- book / video / article / website / account（account 仅用于"我在哪里"板块）
   title       TEXT NOT NULL,
   url         TEXT,
   source      TEXT,                   -- 来源名称

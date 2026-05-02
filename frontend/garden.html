@@ -29,9 +29,12 @@
 
     const { sections } = await api.getGardenSections();
     let activeSection = sections[0];
+    let activeType = '';  // '' = 全部
 
-    const TYPE_LABEL = { article: '文章', video: '视频', book: '书籍', account: '账号', other: '其他' };
-    const TYPE_COLOR = { article: '#fbbf24', video: '#f87171', book: '#60a5fa', account: '#4ade80', other: '#94a3b8' };
+    const TYPE_LABEL = { book: '书籍', video: '视频', article: '文章', website: '网站', account: '账号' };
+    const TYPE_COLOR = { book: '#60a5fa', video: '#f87171', article: '#fbbf24', website: '#4ade80', account: '#a78bfa' };
+    const TYPE_FILTERS = ['', 'book', 'video', 'article', 'website'];
+    const TYPE_FILTER_LABEL = { '': '全部', book: '📘 书籍', video: '🎬 视频', article: '📄 文章', website: '🌐 网站' };
 
     function renderSectionNav() {
       document.getElementById('section-nav').innerHTML = sections.map(s => `
@@ -39,42 +42,74 @@
       `).join('');
     }
 
+    function renderTypeFilter() {
+      return `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px" id="type-filter">
+          ${TYPE_FILTERS.map(t => `
+            <button class="page-btn ${activeType === t ? 'active' : ''}" data-type="${t}">${TYPE_FILTER_LABEL[t]}</button>
+          `).join('')}
+        </div>`;
+    }
+
+    function renderItemCard(item) {
+      const color = TYPE_COLOR[item.type] || '#94a3b8';
+      const label = TYPE_LABEL[item.type] || item.type;
+      return `
+        <div class="card">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:${color}20;color:${color};font-size:11px;padding:2px 8px;border-radius:4px;white-space:nowrap;margin-top:2px;flex-shrink:0">${label}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;margin-bottom:4px">${item.title}</div>
+              ${item.summary ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${item.summary}</p>` : ''}
+              <div style="font-size:12px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap">
+                ${item.source ? `<span>${item.source}</span>` : ''}
+                ${item.url ? `<a href="${item.url}" target="_blank">🔗 原文链接</a>` : ''}
+              </div>
+              ${item.embed_url ? `<iframe src="${item.embed_url}" style="width:100%;height:320px;border:1px solid var(--border);border-radius:6px;margin-top:12px" loading="lazy"></iframe>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+
     async function renderSection(section) {
-      const { items } = await api.getGardenItems(section.id);
+      const { items } = await api.getGardenItems(section.id, activeType);
+
       if (section.slug === 'social') {
         document.getElementById('section-content').innerHTML = `
-          <div class="section-title">我在哪里</div>
-          <div class="grid-3" style="margin-top:12px">
-            ${items.map(item => `
+          <div class="section-title" style="margin-bottom:16px">我在哪里</div>
+          <div class="grid-3">
+            ${items.length ? items.map(item => `
               <div class="card" style="display:flex;align-items:center;gap:12px">
                 <div style="width:40px;height:40px;background:var(--bg-hover);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px">🌐</div>
                 <div>
                   <div style="font-weight:600">${item.title}</div>
                   <a href="${item.url}" target="_blank" style="font-size:12px;color:var(--text-muted)">${item.source}</a>
                 </div>
-              </div>`).join('') || '<div class="empty">规划中，敬请期待</div>'}
+              </div>`).join('')
+            : '<div class="empty" style="grid-column:1/-1">规划中，敬请期待</div>'}
           </div>`;
         return;
       }
+
       document.getElementById('section-content').innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:12px">
-          ${items.length ? items.map(item => `
-            <div class="card">
-              <div style="display:flex;align-items:flex-start;gap:12px">
-                <span style="background:${TYPE_COLOR[item.type] || '#94a3b8'}20;color:${TYPE_COLOR[item.type] || '#94a3b8'};font-size:11px;padding:2px 8px;border-radius:4px;white-space:nowrap;margin-top:2px">${TYPE_LABEL[item.type] || item.type}</span>
-                <div style="flex:1">
-                  <div style="font-weight:600;margin-bottom:4px">${item.title}</div>
-                  ${item.summary ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${item.summary}</p>` : ''}
-                  <div style="font-size:12px;color:var(--text-muted);display:flex;gap:12px">
-                    ${item.source ? `<span>${item.source}</span>` : ''}
-                    ${item.url ? `<a href="${item.url}" target="_blank">🔗 原文链接</a>` : ''}
-                  </div>
-                  ${item.embed_url ? `<iframe src="${item.embed_url}" style="width:100%;height:320px;border:1px solid var(--border);border-radius:6px;margin-top:12px" loading="lazy"></iframe>` : ''}
-                </div>
-              </div>
-            </div>`).join('')
-          : '<div class="empty">暂无收藏</div>'}
+        ${renderTypeFilter()}
+        <div style="display:flex;flex-direction:column;gap:12px" id="item-list">
+          ${items.length ? items.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>'}
         </div>`;
+
+      document.getElementById('type-filter').addEventListener('click', onTypeFilter);
+
+    async function onTypeFilter(e) {
+        if (!e.target.matches('[data-type]')) return;
+        activeType = e.target.dataset.type;
+        const { items: filtered } = await api.getGardenItems(activeSection.id, activeType);
+        // re-render only the filter buttons and list, keep listener on stable container
+        document.querySelectorAll('#type-filter .page-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.type === activeType);
+        });
+        document.getElementById('item-list').innerHTML =
+          filtered.length ? filtered.map(renderItemCard).join('') : '<div class="empty">暂无内容</div>';
+      }
     }
 
     renderSectionNav();
@@ -83,6 +118,7 @@
     document.getElementById('section-nav').addEventListener('click', e => {
       if (!e.target.matches('[data-id]')) return;
       activeSection = sections.find(s => s.id === +e.target.dataset.id);
+      activeType = '';
       renderSectionNav();
       renderSection(activeSection);
     });

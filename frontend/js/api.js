@@ -19,8 +19,8 @@ export const api = {
   getColumns:  ()            => request('/columns'),
   getColumn:   (slug)        => request(`/columns/${slug}`),
   getProjects: ()            => request('/projects'),
-  getGardenSections: ()           => request('/garden/sections'),
-  getGardenItems:    (sectionId)  => request(`/garden/items?section_id=${sectionId}`),
+  getGardenSections: ()                    => request('/garden/sections'),
+  getGardenItems:    (sectionId, type = '') => request(`/garden/items?section_id=${sectionId}${type ? '&type=' + type : ''}`),
   trackPage: (path, referrer = '') =>
     request('/track/page', { method: 'POST', body: JSON.stringify({ path, referrer }) }),
   trackPost: (id) =>
