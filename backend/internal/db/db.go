@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/daiyutong/blog/internal/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -19,6 +20,19 @@ func Init(dbPath string) *gorm.DB {
 	})
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
+	}
+	if err := database.AutoMigrate(
+		&model.Post{},
+		&model.Column{},
+		&model.ColumnPost{},
+		&model.Project{},
+		&model.GardenSection{},
+		&model.GardenItem{},
+		&model.PostView{},
+		&model.PageView{},
+		&model.DailyStat{},
+	); err != nil {
+		log.Fatalf("automigrate failed: %v", err)
 	}
 	return database
 }
