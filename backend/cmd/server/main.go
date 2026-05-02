@@ -16,7 +16,8 @@ func main() {
 
 	uploadDir := "./data/uploads"
 
-	postSvc := service.NewPostService(database)
+	postSvc    := service.NewPostService(database)
+	profileSvc := service.NewProfileService(database)
 	colSvc := service.NewColumnService(database)
 	projSvc := service.NewProjectService(database)
 	gardenSvc := service.NewGardenService(database)
@@ -30,6 +31,7 @@ func main() {
 		Garden:  handler.NewGardenHandler(gardenSvc),
 		Stats:   handler.NewStatsHandler(statsSvc),
 		Upload:  handler.NewUploadHandler(uploadDir),
+		Profile: handler.NewProfileHandler(profileSvc),
 	}
 
 	r := router.Setup(h, cfg.JWTSecret, uploadDir, cfg.FrontendDir)

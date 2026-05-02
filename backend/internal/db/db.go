@@ -31,6 +31,7 @@ func Init(dbPath string) *gorm.DB {
 		&model.PostView{},
 		&model.PageView{},
 		&model.DailyStat{},
+		&model.Profile{},
 	); err != nil {
 		log.Fatalf("automigrate failed: %v", err)
 	}

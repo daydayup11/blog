@@ -18,6 +18,7 @@ type Handlers struct {
 	Garden  *handler.GardenHandler
 	Stats   *handler.StatsHandler
 	Upload  *handler.UploadHandler
+	Profile *handler.ProfileHandler
 }
 
 func Setup(h Handlers, jwtSecret, uploadDir, frontendDir string) *gin.Engine {
@@ -52,6 +53,7 @@ func Setup(h Handlers, jwtSecret, uploadDir, frontendDir string) *gin.Engine {
 
 	api := r.Group("/api")
 
+	api.GET("/profile", h.Profile.Get)
 	api.POST("/auth/login", h.Auth.Login)
 	api.GET("/posts", h.Post.List)
 	api.GET("/posts/:slug", h.Post.GetBySlug)
@@ -94,6 +96,8 @@ func Setup(h Handlers, jwtSecret, uploadDir, frontendDir string) *gin.Engine {
 	admin.PUT("/garden/items/:id", h.Garden.AdminUpdateItem)
 	admin.DELETE("/garden/items/:id", h.Garden.AdminDeleteItem)
 	admin.POST("/upload", h.Upload.Upload)
+	admin.GET("/profile", h.Profile.Get)
+	admin.PUT("/profile", h.Profile.Save)
 
 	return r
 }

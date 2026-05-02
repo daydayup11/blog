@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人信息 | 后台</title>
+  <script>(function(){var t=localStorage.getItem('blog-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="/css/theme-dark.css">
+  <link rel="stylesheet" href="/css/theme-light.css">
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .form-field { margin-bottom:18px; }
+    .form-field label { display:block; font-size:13px; color:var(--text-secondary); margin-bottom:6px; font-weight:500; }
+    .form-field input, .form-field textarea {
+      width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:6px;
+      background:var(--bg-card); color:var(--text-primary); font-size:14px; outline:none;
+    }
+    .form-field input:focus, .form-field textarea:focus { border-color:var(--accent); }
+    .hint { font-size:11px; color:var(--text-muted); margin-top:4px; }
+    .list-editor { display:flex; flex-direction:column; gap:8px; }
+    .list-row { display:flex; gap:8px; align-items:center; }
+    .list-row input { flex:1; padding:7px 10px; border:1px solid var(--border); border-radius:6px; background:var(--bg-secondary); color:var(--text-primary); font-size:13px; outline:none; }
+    .list-row input:focus { border-color:var(--accent); }
+    .remove-btn { padding:5px 10px; border:1px solid var(--border); border-radius:4px; background:none; cursor:pointer; color:var(--text-muted); font-size:13px; flex-shrink:0; }
+    .remove-btn:hover { border-color:#f87171; color:#f87171; }
+    .add-btn { padding:5px 12px; border:1px dashed var(--border); border-radius:4px; background:none; cursor:pointer; color:var(--text-muted); font-size:12px; margin-top:4px; }
+    .add-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .save-btn { padding:9px 24px; border:none; border-radius:6px; background:var(--accent); color:#000; font-size:14px; font-weight:600; cursor:pointer; }
+    .save-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .section-divider { border:none; border-top:1px solid var(--border); margin:28px 0; }
+    .section-label { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--text-muted); margin-bottom:16px; }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main class="page" style="max-width:720px">
+    <div style="display:flex;align-items:center;margin-bottom:28px">
+      <h2 style="font-size:18px;font-weight:700">个人信息</h2>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <span id="status-msg" style="font-size:13px;color:var(--text-muted)"></span>
+        <button class="save-btn" id="save-btn" onclick="saveProfile()">保存</button>
+      </div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="section-label">基本信息</div>
+    <div class="form-field">
+      <label>姓名 / 昵称</label>
+      <input id="f-name" placeholder="戴宇彤">
+    </div>
+    <div class="form-field">
+      <label>副标题</label>
+      <input id="f-subtitle" placeholder="Full-stack Developer · Go · Java · Python · Docker">
+    </div>
+    <div class="form-field">
+      <label>个人简介</label>
+      <textarea id="f-bio" rows="3" placeholder="一句话介绍自己..."></textarea>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 技能标签 -->
+    <div class="section-label">技能标签</div>
+    <div class="list-editor" id="skills-editor"></div>
+    <button class="add-btn" onclick="addSkill()">+ 添加技能</button>
+
+    <hr class="section-divider">
+
+    <!-- 经历时间线 -->
+    <div class="section-label">经历时间线</div>
+    <div id="timeline-editor" style="display:flex;flex-direction:column;gap:10px"></div>
+    <button class="add-btn" onclick="addTimeline()">+ 添加经历</button>
+
+    <hr class="section-divider">
+
+    <!-- 社交链接 -->
+    <div class="section-label">社交链接 / 联系方式</div>
+    <div id="social-editor" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="add-btn" onclick="addSocial()">+ 添加链接</button>
+
+    <hr class="section-divider">
+    <div style="display:flex;justify-content:flex-end;gap:12px;align-items:center">
+      <span id="status-msg2" style="font-size:13px;color:var(--text-muted)"></span>
+      <button class="save-btn" onclick="saveProfile()">保存</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { requireAuth, renderAdminNav } from '/admin/js/auth.js';
+    import { api } from '/js/api.js';
+    import '/js/theme.js';
+
+    requireAuth();
+    document.getElementById('nav-root').innerHTML = renderAdminNav('profile');
+
+    // ── Data helpers ─────────────────────────────────────────────
+    function safeJSON(str, fallback = []) {
+      try { return JSON.parse(str) || fallback; } catch { return fallback; }
+    }
+
+    // ── Skills ───────────────────────────────────────────────────
+    function renderSkills(skills) {
+      document.getElementById('skills-editor').innerHTML = skills.map((s, i) => `
+        <div class="list-row">
+          <input value="${s}" placeholder="Go" oninput="updateSkill(${i}, this.value)">
+          <button class="remove-btn" onclick="removeSkill(${i})">删除</button>
+        </div>`).join('');
+    }
+
+    let skills = [];
+    window.addSkill    = () => { skills.push(''); renderSkills(skills); };
+    window.removeSkill = (i) => { skills.splice(i, 1); renderSkills(skills); };
+    window.updateSkill = (i, v) => { skills[i] = v; };
+
+    // ── Timeline ─────────────────────────────────────────────────
+    function renderTimeline(tl) {
+      document.getElementById('timeline-editor').innerHTML = tl.map((t, i) => `
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
+          <div class="list-row">
+            <input value="${t.year || ''}" placeholder="2024" style="max-width:80px" oninput="updateTL(${i},'year',this.value)">
+            <input value="${t.title || ''}" placeholder="某公司 · 后端工程师" oninput="updateTL(${i},'title',this.value)">
+            <button class="remove-btn" onclick="removeTL(${i})">删除</button>
+          </div>
+          <input value="${t.sub || ''}" placeholder="补充说明（可选）" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px;outline:none" oninput="updateTL(${i},'sub',this.value)">
+        </div>`).join('');
+    }
+
+    let timeline = [];
+    window.addTimeline  = () => { timeline.push({ year: '', title: '', sub: '' }); renderTimeline(timeline); };
+    window.removeTL     = (i) => { timeline.splice(i, 1); renderTimeline(timeline); };
+    window.updateTL     = (i, k, v) => { timeline[i][k] = v; };
+
+    // ── Social ───────────────────────────────────────────────────
+    function renderSocial(soc) {
+      document.getElementById('social-editor').innerHTML = soc.map((s, i) => `
+        <div class="list-row">
+          <input value="${s.label || ''}" placeholder="GitHub" style="max-width:100px" oninput="updateSoc(${i},'label',this.value)">
+          <input value="${s.url || ''}" placeholder="https://github.com/xxx" oninput="updateSoc(${i},'url',this.value)">
+          <input value="${s.icon || ''}" placeholder="⭐" style="max-width:50px;text-align:center" oninput="updateSoc(${i},'icon',this.value)">
+          <button class="remove-btn" onclick="removeSoc(${i})">删除</button>
+        </div>`).join('');
+    }
+
+    let social = [];
+    window.addSocial  = () => { social.push({ label: '', url: '', icon: '' }); renderSocial(social); };
+    window.removeSoc  = (i) => { social.splice(i, 1); renderSocial(social); };
+    window.updateSoc  = (i, k, v) => { social[i][k] = v; };
+
+    // ── Load ─────────────────────────────────────────────────────
+    const profile = await api.getProfile();
+    document.getElementById('f-name').value     = profile.name     || '';
+    document.getElementById('f-subtitle').value = profile.subtitle || '';
+    document.getElementById('f-bio').value       = profile.bio      || '';
+    skills   = safeJSON(profile.skills,   []);
+    timeline = safeJSON(profile.timeline, []);
+    social   = safeJSON(profile.social,   []);
+    renderSkills(skills);
+    renderTimeline(timeline);
+    renderSocial(social);
+
+    // ── Save ─────────────────────────────────────────────────────
+    window.saveProfile = async () => {
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true;
+      ['status-msg','status-msg2'].forEach(id => document.getElementById(id).textContent = '');
+      try {
+        await api.adminSaveProfile({
+          name:     document.getElementById('f-name').value.trim(),
+          subtitle: document.getElementById('f-subtitle').value.trim(),
+          bio:      document.getElementById('f-bio').value.trim(),
+          skills:   JSON.stringify(skills.filter(Boolean)),
+          timeline: JSON.stringify(timeline.filter(t => t.title)),
+          social:   JSON.stringify(social.filter(s => s.url)),
+        });
+        const msg = '✓ 已保存 ' + new Date().toLocaleTimeString('zh-CN');
+        ['status-msg','status-msg2'].forEach(id => document.getElementById(id).textContent = msg);
+      } catch (err) {
+        ['status-msg','status-msg2'].forEach(id =>
+          document.getElementById(id).textContent = '保存失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

@@ -16,6 +16,7 @@ export function renderAdminNav(activePage) {
     { href: '/admin/columns.html',   label: '专栏',   key: 'columns'   },
     { href: '/admin/projects.html',  label: '项目',   key: 'projects'  },
     { href: '/admin/garden.html',    label: '花园',   key: 'garden'    },
+    { href: '/admin/profile.html',   label: '主页',   key: 'profile'   },
   ];
   const links = pages.map(p =>
     `<a href="${p.href}" class="${p.key === activePage ? 'active' : ''}">${p.label}</a>`

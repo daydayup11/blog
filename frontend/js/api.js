@@ -19,6 +19,8 @@ export const api = {
   getColumns:  ()            => request('/columns'),
   getColumn:   (slug)        => request(`/columns/${slug}`),
   getProjects: ()            => request('/projects'),
+  getProfile: () => request('/profile'),
+  adminSaveProfile: (data) => request('/admin/profile', { method: 'PUT', body: JSON.stringify(data) }),
   getGardenSections: ()                    => request('/garden/sections'),
   getWorksSections:  ()                    => request('/works/sections'),
   getGardenItems:    (sectionId, type = '', tag = '') => request(`/garden/items?section_id=${sectionId}${type ? '&type=' + type : ''}${tag ? '&tag=' + encodeURIComponent(tag) : ''}`),
