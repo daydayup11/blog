@@ -21,20 +21,43 @@
 - **CMS 后台**：文章/专栏/项目/花园/主页 全套管理，JWT 鉴权
 - **双主题**：暗黑 / 明亮，跟随系统偏好，用户可手动切换
 
-## 快速启动
+## 快速部署
 
-**依赖：** Go 1.22+、Git
+### 方式一：Docker（推荐，无需 Go 环境）
+
+**依赖：** Docker
 
 ```bash
 git clone <repo-url>
-cd blog/backend
-go run ./cmd/server
+cd blog
+cp .env.example .env        # 编辑 .env，设置密码和密钥
+./deploy.sh                 # 一键启动
 ```
 
-访问 http://localhost:8080
+### 方式二：直接运行（开发者）
 
-后台地址：http://localhost:8080/admin/index.html
-默认账号：`admin` / `admin123`（生产环境务必通过环境变量修改）
+**依赖：** Go 1.22+
+
+```bash
+git clone <repo-url>
+cd blog
+./start.sh                  # 自动编译并启动
+```
+
+---
+
+访问 http://localhost:8080
+后台：http://localhost:8080/admin/index.html（账号见 `.env` 或默认 `admin/admin123`）
+
+常用命令：
+
+```bash
+# Docker 版
+./deploy.sh stop|restart|logs|update
+
+# 直接运行版
+./start.sh stop|restart|status|logs
+```
 
 ## 目录结构
 
