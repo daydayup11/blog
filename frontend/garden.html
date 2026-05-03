@@ -42,6 +42,14 @@
     api.trackPage(location.pathname, document.referrer);
 
     const { sections } = await api.getGardenSections();
+
+    if (!sections || !sections.length) {
+      document.getElementById('section-nav').innerHTML = '';
+      document.getElementById('section-content').innerHTML =
+        '<div class="empty">暂无板块，请在后台花园管理中添加</div>';
+      // still need to run theme/nav, just stop here
+    } else {
+
     let activeSection = sections[0];
     let activeType = '';
     let activeTag  = '';
@@ -198,6 +206,8 @@
       renderSectionNav();
       renderSection(activeSection);
     });
+
+    } // end if sections.length
   </script>
 </body>
 </html>
