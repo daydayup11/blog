@@ -144,5 +144,8 @@ func (s *PostService) AllTags() []string {
 			}
 		}
 	}
+	if tags == nil {
+		return []string{}
+	}
 	return tags
 }

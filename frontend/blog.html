@@ -61,7 +61,8 @@
     });
 
     // Tags
-    const { tags } = await api.getTags();
+    const { tags: rawTags } = await api.getTags();
+    const tags = rawTags || [];
     const tagFilter = document.getElementById('tag-filter');
     tagFilter.innerHTML = ['全部', ...tags].map(t =>
       `<button class="page-btn ${t === '全部' ? 'active' : ''}" data-tag="${t === '全部' ? '' : t}">${t}</button>`
