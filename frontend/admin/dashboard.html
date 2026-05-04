@@ -237,7 +237,10 @@
     }
 
     // ── 加载数据 ─────────────────────────────────────────────────
+    let currentDays = 7;
+
     async function loadStats(days) {
+      currentDays = days;
       document.querySelectorAll('[data-days]').forEach(b =>
         b.classList.toggle('active', +b.dataset.days === days));
       const data = await api.adminStats(days);
@@ -264,10 +267,9 @@
       if (e.target.matches('[data-days]')) loadStats(+e.target.dataset.days);
     });
 
-    // 主题切换时重绘图表
-    new MutationObserver(() => loadStats(
-      +document.querySelector('[data-days].active')?.dataset.days || 7
-    )).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    // 主题切换时用当前选中的时间范围重绘
+    new MutationObserver(() => loadStats(currentDays))
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     loadStats(7);
   </script>
