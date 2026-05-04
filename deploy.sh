@@ -13,6 +13,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
 
+# 兼容 docker compose（插件版）和 docker-compose（独立版）
+if docker compose version &>/dev/null 2>&1; then
+  DC="docker compose"
+elif command -v docker-compose &>/dev/null; then
+  DC="docker-compose"
+else
+  DC=""
+fi
+
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -28,29 +37,29 @@ section() { echo -e "\n${CYAN}── $1${NC}"; }
 case "${1:-}" in
   stop)
     section "停止服务"
-    cd "$SCRIPT_DIR" && docker compose down
+    cd "$SCRIPT_DIR" && $DC down
     info "服务已停止"
     exit 0
     ;;
   restart)
     section "重启服务"
-    cd "$SCRIPT_DIR" && docker compose restart
+    cd "$SCRIPT_DIR" && $DC restart
     info "服务已重启"
     exit 0
     ;;
   status)
-    cd "$SCRIPT_DIR" && docker compose ps
+    cd "$SCRIPT_DIR" && $DC ps
     exit 0
     ;;
   logs)
-    cd "$SCRIPT_DIR" && docker compose logs -f --tail=100
+    cd "$SCRIPT_DIR" && $DC logs -f --tail=100
     exit 0
     ;;
   update)
     section "更新到最新版本"
     cd "$SCRIPT_DIR"
-    docker compose pull 2>/dev/null || warn "无法拉取远程镜像，使用本地版本"
-    docker compose up -d --build
+    $DC pull 2>/dev/null || warn "无法拉取远程镜像，使用本地版本"
+    $DC up -d --build
     info "更新完成"
     exit 0
     ;;
@@ -86,10 +95,10 @@ fi
 DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null)
 info "Docker 版本: $DOCKER_VERSION"
 
-if ! docker compose version &> /dev/null; then
-  error "需要 Docker Compose v2，请更新 Docker 到最新版本"
+if [ -z "$DC" ]; then
+  error "未找到 Docker Compose\n  安装方式: brew install docker-compose\n  或更新 Docker Desktop 到最新版"
 fi
-info "Docker Compose: 已就绪"
+info "Docker Compose: $($DC version --short 2>/dev/null || echo 'OK')"
 
 # 2. 检查 .env 文件
 section "检查配置"
@@ -140,17 +149,17 @@ if grep -q "DOCKER_IMAGE" "$ENV_FILE" 2>/dev/null && [ -n "${DOCKER_IMAGE:-}" ];
   }
 else
   info "本地构建镜像（首次约需 3-5 分钟）..."
-  docker compose build
+  $DC build
 fi
 
 section "启动服务"
-docker compose up -d
+$DC up -d
 
 # 5. 等待健康检查
 info "等待服务就绪..."
 for i in $(seq 1 30); do
   sleep 1
-  STATUS=$(docker compose ps --format json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
+  STATUS=$($DC ps --format json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
   if curl -s -o /dev/null -w "%{http_code}" "http://localhost:${PORT:-8080}/" 2>/dev/null | grep -q "200\|301"; then
     break
   fi
