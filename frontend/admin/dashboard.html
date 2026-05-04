@@ -13,6 +13,7 @@
   <div id="nav-root"></div>
   <main class="page">
 
+    <!-- Header -->
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <h2 style="font-size:18px;font-weight:700">访问统计</h2>
       <div style="margin-left:auto;display:flex;gap:6px">
@@ -22,6 +23,7 @@
       </div>
     </div>
 
+    <!-- Summary cards -->
     <div class="grid-3" style="margin-bottom:28px">
       <div class="card" style="text-align:center">
         <div style="font-size:28px;font-weight:700;color:var(--accent)" id="total-pv">—</div>
@@ -40,19 +42,32 @@
       </div>
     </div>
 
+    <!-- PV/UV 折线图 -->
     <div class="card" style="margin-bottom:28px">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">每日 PV / UV</div>
-      <canvas id="stats-chart" height="120"></canvas>
+      <div style="display:flex;align-items:center;margin-bottom:16px">
+        <span style="font-size:13px;color:var(--text-muted)">每日趋势</span>
+        <div style="margin-left:auto;display:flex;gap:14px;font-size:12px">
+          <span id="legend-pv" style="display:flex;align-items:center;gap:5px">
+            <span style="width:20px;height:2px;border-radius:2px;display:inline-block" id="legend-pv-line"></span>PV
+          </span>
+          <span id="legend-uv" style="display:flex;align-items:center;gap:5px">
+            <span style="width:20px;height:2px;border-radius:2px;display:inline-block" id="legend-uv-line"></span>UV
+          </span>
+        </div>
+      </div>
+      <canvas id="line-chart" height="140"></canvas>
     </div>
 
+    <!-- 页面访问折线图 -->
     <div class="card" style="margin-bottom:28px">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">页面访问分布（Top 10）</div>
+      <canvas id="page-chart" height="160"></canvas>
+    </div>
+
+    <!-- 热门文章 -->
+    <div class="card">
       <div class="section-title" style="margin-bottom:16px">热门文章 Top 10</div>
       <div id="top-posts"><div class="loading">加载中...</div></div>
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-bottom:16px">页面访问明细（Top 30）</div>
-      <div id="page-stats"><div class="loading">加载中...</div></div>
     </div>
 
   </main>
@@ -65,16 +80,175 @@
     requireAuth();
     document.getElementById('nav-root').innerHTML = renderAdminNav('dashboard');
 
-    let currentDays = 7;
+    // ── 颜色工具 ─────────────────────────────────────────────────
+    function colors() {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return {
+        pv:      dark ? '#00ff88' : '#2563eb',
+        uv:      dark ? '#60a5fa' : '#93c5fd',
+        grid:    dark ? '#1e293b' : '#e2e8f0',
+        label:   dark ? '#475569' : '#94a3b8',
+        text:    dark ? '#94a3b8' : '#475569',
+        palette: dark
+          ? ['#00ff88','#60a5fa','#f87171','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8','#4ade80']
+          : ['#2563eb','#0891b2','#dc2626','#d97706','#7c3aed','#059669','#ea580c','#c026d3','#0369a1','#16a34a'],
+      };
+    }
 
+    function setLegendColors() {
+      const c = colors();
+      document.getElementById('legend-pv-line').style.background = c.pv;
+      document.getElementById('legend-uv-line').style.background = c.uv;
+      document.getElementById('legend-pv').style.color = c.text;
+      document.getElementById('legend-uv').style.color = c.text;
+    }
+
+    // ── 折线图（PV/UV 趋势）──────────────────────────────────────
+    function drawLineChart(daily) {
+      const canvas = document.getElementById('line-chart');
+      const ctx    = canvas.getContext('2d');
+      const W = canvas.parentElement.clientWidth - 40;
+      const H = 140;
+      canvas.width = W; canvas.height = H;
+      ctx.clearRect(0, 0, W, H);
+      const c = colors();
+
+      if (!daily.length) {
+        ctx.fillStyle = c.label; ctx.font = '13px system-ui';
+        ctx.fillText('暂无数据', W / 2 - 24, H / 2); return;
+      }
+
+      const PAD = { top: 12, right: 16, bottom: 28, left: 36 };
+      const cW = W - PAD.left - PAD.right;
+      const cH = H - PAD.top - PAD.bottom;
+      const maxVal = Math.max(...daily.map(d => Math.max(d.pv, d.uv)), 1);
+
+      // Grid lines (4 horizontal)
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = PAD.top + cH - (i / 4) * cH;
+        ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
+        if (i > 0) {
+          ctx.fillStyle = c.label; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+          ctx.fillText(Math.round((i / 4) * maxVal), PAD.left - 4, y + 3);
+        }
+      }
+
+      // X labels
+      const labelStep = Math.max(1, Math.ceil(daily.length / 7));
+      daily.forEach((d, i) => {
+        if (i % labelStep !== 0 && i !== daily.length - 1) return;
+        const x = PAD.left + (i / (daily.length - 1 || 1)) * cW;
+        ctx.fillStyle = c.label; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText(d.date.slice(5), x, H - 4);
+      });
+
+      // Draw line + area for a series
+      function drawSeries(values, color, fill) {
+        const pts = values.map((v, i) => ({
+          x: PAD.left + (i / (values.length - 1 || 1)) * cW,
+          y: PAD.top + cH - (v / maxVal) * cH,
+        }));
+
+        // Area fill
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, PAD.top + cH);
+        pts.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(pts[pts.length - 1].x, PAD.top + cH);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+
+        // Line
+        ctx.beginPath();
+        pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        // Dots
+        ctx.fillStyle = color;
+        pts.forEach(p => {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      drawSeries(daily.map(d => d.uv), c.uv, isDark ? 'rgba(96,165,250,0.08)' : 'rgba(37,99,235,0.06)');
+      drawSeries(daily.map(d => d.pv), c.pv, isDark ? 'rgba(0,255,136,0.08)' : 'rgba(37,99,235,0.10)');
+    }
+
+    // ── 水平条形图（页面分布）────────────────────────────────────
+    function drawPageChart(pages) {
+      const canvas = document.getElementById('page-chart');
+      const ctx    = canvas.getContext('2d');
+      const top10  = pages.slice(0, 10);
+      const W = canvas.parentElement.clientWidth - 40;
+      const ROW = 28;
+      const H = Math.max(160, top10.length * ROW + 20);
+      canvas.width = W; canvas.height = H;
+      ctx.clearRect(0, 0, W, H);
+      const c = colors();
+
+      if (!top10.length) {
+        ctx.fillStyle = c.label; ctx.font = '13px system-ui';
+        ctx.fillText('暂无数据', W / 2 - 24, H / 2); return;
+      }
+
+      const maxPV  = Math.max(...top10.map(p => p.pv), 1);
+      const LABEL_W = Math.min(180, Math.floor(W * 0.35));
+      const BAR_W   = W - LABEL_W - 60;
+
+      top10.forEach((p, i) => {
+        const y    = i * ROW + 10;
+        const barLen = Math.round((p.pv / maxPV) * BAR_W);
+        const color  = c.palette[i % c.palette.length];
+
+        // Path label (truncate)
+        ctx.fillStyle = c.text; ctx.font = '12px monospace'; ctx.textAlign = 'right';
+        const label = p.path.length > 22 ? '…' + p.path.slice(-20) : p.path;
+        ctx.fillText(label, LABEL_W, y + ROW / 2 + 4);
+
+        // Bar background
+        ctx.fillStyle = c.grid;
+        ctx.fillRect(LABEL_W + 8, y + 6, BAR_W, ROW - 12);
+
+        // Bar fill with rounded right end
+        if (barLen > 0) {
+          const bx = LABEL_W + 8, by = y + 6, bh = ROW - 12;
+          const r = Math.min(4, bh / 2);
+          ctx.beginPath();
+          ctx.moveTo(bx, by); ctx.lineTo(bx + barLen - r, by);
+          ctx.quadraticCurveTo(bx + barLen, by, bx + barLen, by + r);
+          ctx.lineTo(bx + barLen, by + bh - r);
+          ctx.quadraticCurveTo(bx + barLen, by + bh, bx + barLen - r, by + bh);
+          ctx.lineTo(bx, by + bh); ctx.closePath();
+          ctx.fillStyle = color + (document.documentElement.getAttribute('data-theme') === 'dark' ? 'cc' : '99');
+          ctx.fill();
+        }
+
+        // PV value
+        ctx.fillStyle = c.text; ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+        ctx.fillText(`${p.pv} / ${p.uv}`, LABEL_W + 8 + barLen + 6, y + ROW / 2 + 4);
+      });
+
+      // Legend
+      ctx.fillStyle = c.label; ctx.font = '11px system-ui'; ctx.textAlign = 'right';
+      ctx.fillText('PV / UV', W, 10);
+    }
+
+    // ── 加载数据 ─────────────────────────────────────────────────
     async function loadStats(days) {
-      currentDays = days;
       document.querySelectorAll('[data-days]').forEach(b =>
         b.classList.toggle('active', +b.dataset.days === days));
       const data = await api.adminStats(days);
+
       document.getElementById('total-pv').textContent = data.total_pv ?? 0;
       document.getElementById('total-uv').textContent = data.total_uv ?? 0;
-      drawChart(data.daily || []);
+
+      setLegendColors();
+      drawLineChart(data.daily || []);
+      drawPageChart(data.pages || []);
+
       const posts = data.top_posts || [];
       document.getElementById('top-posts').innerHTML = posts.length
         ? posts.map((p, i) => `
@@ -84,66 +258,16 @@
               <span style="font-size:13px;color:var(--text-muted)">👁 ${p.views}</span>
             </div>`).join('')
         : '<div class="empty">暂无数据</div>';
-
-      const pages = data.pages || [];
-      document.getElementById('page-stats').innerHTML = pages.length
-        ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead>
-              <tr style="border-bottom:1px solid var(--border)">
-                <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500">页面路径</th>
-                <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;width:70px">PV</th>
-                <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;width:70px">UV</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${pages.map(p => `
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:7px 8px;color:var(--text-primary);font-family:monospace;font-size:12px">${p.path}</td>
-                  <td style="padding:7px 8px;text-align:right;color:var(--text-secondary)">${p.pv}</td>
-                  <td style="padding:7px 8px;text-align:right;color:var(--text-muted)">${p.uv}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>`
-        : '<div class="empty">暂无数据</div>';
-    }
-
-    function drawChart(daily) {
-      const canvas = document.getElementById('stats-chart');
-      const ctx = canvas.getContext('2d');
-      canvas.width = canvas.parentElement.clientWidth - 40;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!daily.length) {
-        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
-        ctx.font = '13px system-ui';
-        ctx.fillText('暂无数据', canvas.width / 2 - 24, canvas.height / 2);
-        return;
-      }
-      const maxVal = Math.max(...daily.map(d => Math.max(d.pv, d.uv)), 1);
-      const barW = Math.floor((canvas.width - 20) / daily.length / 2.5);
-      const gap  = Math.floor((canvas.width - 20) / daily.length);
-      const h    = canvas.height - 24;
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const pvColor = isDark ? '#00ff88' : '#2563eb';
-      const uvColor = isDark ? '#60a5fa' : '#93c5fd';
-      daily.forEach((d, i) => {
-        const x = 10 + i * gap;
-        const pvH = Math.round((d.pv / maxVal) * h);
-        const uvH = Math.round((d.uv / maxVal) * h);
-        ctx.fillStyle = pvColor;
-        ctx.fillRect(x, h - pvH, barW, pvH);
-        ctx.fillStyle = uvColor;
-        ctx.fillRect(x + barW + 2, h - uvH, barW, uvH);
-        if (i % Math.ceil(daily.length / 7) === 0) {
-          ctx.fillStyle = isDark ? '#475569' : '#94a3b8';
-          ctx.font = '10px system-ui';
-          ctx.fillText(d.date.slice(5), x, canvas.height);
-        }
-      });
     }
 
     document.querySelector('[data-days]').parentElement.addEventListener('click', e => {
       if (e.target.matches('[data-days]')) loadStats(+e.target.dataset.days);
     });
+
+    // 主题切换时重绘图表
+    new MutationObserver(() => loadStats(
+      +document.querySelector('[data-days].active')?.dataset.days || 7
+    )).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     loadStats(7);
   </script>
