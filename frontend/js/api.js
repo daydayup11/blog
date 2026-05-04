@@ -7,6 +7,13 @@ async function request(path, options = {}) {
     : { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(BASE + path, { ...options, headers });
+  // Token expired or invalid — clear token and redirect to login
+  if (res.status === 401 && location.pathname.startsWith('/admin/') &&
+      !location.pathname.endsWith('/admin/index.html')) {
+    localStorage.removeItem('admin-token');
+    location.href = '/admin/index.html?expired=1';
+    return;
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   if (res.status === 204) return null;
   return res.json();
