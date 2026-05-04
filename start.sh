@@ -4,15 +4,26 @@
 
 set -e
 
-# ── 配置（可按需修改）───────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 读取 .env（如果存在），忽略 Docker 专用路径
+if [ -f "$SCRIPT_DIR/.env" ]; then
+  while IFS='=' read -r key value; do
+    [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
+    # 跳过 Docker 容器内路径，本地使用默认值
+    [[ "$key" == "DB_PATH" && "$value" == /app/* ]] && continue
+    [[ "$key" == "FRONTEND_DIR" && "$value" == /app/* ]] && continue
+    export "$key"="$value"
+  done < "$SCRIPT_DIR/.env"
+fi
+
+# ── 配置（.env 未设置时使用默认值）─────────────────────────────
 PORT=${PORT:-8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASS=${ADMIN_PASS:-admin123}
 JWT_SECRET=${JWT_SECRET:-$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32 2>/dev/null || echo "dev-secret-please-change")}
 DB_PATH=${DB_PATH:-./data/blog.db}
 # ────────────────────────────────────────────────────────────────
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 PID_FILE="$SCRIPT_DIR/.blog.pid"
