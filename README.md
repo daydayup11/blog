@@ -27,23 +27,19 @@
 
 ### 方式一：Docker（推荐）
 
-**依赖：** [Docker](https://docs.docker.com/get-docker/) + [Docker Compose](https://docs.docker.com/compose/)
+**依赖：** [Docker](https://docs.docker.com/get-docker/)（macOS：`brew install --cask docker`）
 
 ```bash
-# 1. 克隆项目
-git clone <repo-url> && cd blog
-
-# 2. 配置（必须修改 ADMIN_PASS 和 JWT_SECRET）
-cp .env.example .env
-nano .env   # 或用任意编辑器打开
-
-# 3. 一键启动
+git clone <repo-url>
+cd blog
 ./deploy.sh
 ```
 
-生成随机密钥：`openssl rand -hex 32`
-
-**常用命令：**
+脚本全程交互引导，**无需手动编辑任何文件**：
+- 自动检测 Docker 是否就绪
+- 询问端口、用户名、密码（全有默认值，直接回车跳过）
+- 密码留空时自动生成强密码并显示
+- JWT 密钥完全自动生成
 
 ```bash
 ./deploy.sh              # 启动 / 重新部署
@@ -51,73 +47,30 @@ nano .env   # 或用任意编辑器打开
 ./deploy.sh restart      # 重启
 ./deploy.sh logs         # 查看日志
 ./deploy.sh update       # 更新到最新版本
-./deploy.sh status       # 查看运行状态
 ```
 
----
+### 方式二：直接运行（开发者）
 
-### 方式二：直接运行（开发者 / 无 Docker）
-
-**依赖：** [Go 1.22+](https://go.dev/dl/)
+**依赖：** [Go 1.22+](https://go.dev/dl/)（macOS：`brew install go`）
 
 ```bash
-git clone <repo-url> && cd blog
+git clone <repo-url>
+cd blog
 ./start.sh
 ```
 
-**常用命令：**
-
 ```bash
-./start.sh               # 启动（自动编译）
-./start.sh stop          # 停止
-./start.sh restart       # 重启
-./start.sh logs          # 查看日志
-./start.sh status        # 查看运行状态
+./start.sh stop|restart|logs|status
 ```
-
----
 
 ### 访问
 
-启动后访问：
-
 | 地址 | 说明 |
 |---|---|
-| http://localhost:8080 | 前台网站 |
-| http://localhost:8080/admin | 后台管理 |
+| `http://localhost:8080` | 前台网站 |
+| `http://localhost:8080/admin` | 后台管理 |
 
-后台默认账号：`admin` / `admin123`（见 `.env` 文件，**生产环境务必修改**）
-
----
-
-### 内网穿透（临时分享）
-
-```bash
-brew install cloudflared
-cloudflared tunnel --url http://localhost:8080
-```
-
-输出的 `https://xxx.trycloudflare.com` 即可分享给他人访问。
-
----
-
-### 服务器长期部署
-
-参考 [wiki/05-deployment.md](wiki/05-deployment.md)，含 VPS + Nginx + HTTPS 完整配置。
-
----
-
-## 环境变量
-
-配置写在 `.env` 文件（从 `.env.example` 复制）：
-
-| 变量 | 默认值 | 说明 |
-|---|---|---|
-| `ADMIN_PASS` | — | 后台密码，**必须设置** |
-| `JWT_SECRET` | — | 签名密钥，**必须设置**（`openssl rand -hex 32`）|
-| `ADMIN_USER` | `admin` | 后台用户名 |
-| `PORT` | `8080` | 服务端口 |
-| `DB_PATH` | `/app/data/blog.db` | 数据库路径 |
+服务器部署、内网穿透、数据备份等详见 [wiki/05-deployment.md](wiki/05-deployment.md)。
 
 ---
 
